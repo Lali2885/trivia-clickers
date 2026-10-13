@@ -362,7 +362,15 @@ iframe.am.big{aspect-ratio:16/9;width:auto}
    הגדרות Firebase — להדביק כאן את ההגדרות מ-Firebase Console.
    כל עוד זה null, המשחק עובד במצב בדיקה מקומי (לשוניות על אותו מחשב).
    ===================================================================== */
-const FIREBASE_CONFIG = null;
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAJ6ZmS2utxmj9Cx9kuX8E83i6tN6f6DS0",
+  authDomain: "trivia-clickers.firebaseapp.com",
+  databaseURL: "https://trivia-clickers-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "trivia-clickers",
+  storageBucket: "trivia-clickers.firebasestorage.app",
+  messagingSenderId: "1006889563541",
+  appId: "1:1006889563541:web:4e799838292a91afd8f29c"
+};
 
 const svg = inner => `<svg class="ico" viewBox="0 0 24 24">${inner}</svg>`;
 // אייקוני DJ — לבנים (currentColor) עם פרטים כהים שקופים, viewBox 24
