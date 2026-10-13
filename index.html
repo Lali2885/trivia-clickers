@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>טריוויה קליקרים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg:#0f1418; --bg2:#263238; --card:#ffffff; --ink:#1d1d2b; --muted:#6b6b80;
+  --line:#e3e1ee; --primary:#25BDF0; --ok:#26890c; --bad:#e21b3c;
+  --a0:#e21b3c; --a1:#1368ce; --a2:#d89e00; --a3:#26890c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:'Rubik',system-ui,sans-serif;background:radial-gradient(900px 650px at 90% -10%,rgba(37,189,240,.32),transparent 60%),radial-gradient(800px 600px at 0% 110%,rgba(240,82,53,.24),transparent 60%),linear-gradient(160deg,#3d5361,#26363f);background-attachment:fixed;color:#fff;min-height:100vh;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:16px}
+#banner{background:#ffcc00;color:#3a2a00;text-align:center;padding:8px 16px;font-size:14px;font-weight:500;display:none}
+#banner.show{display:block}
+.wrap{max-width:980px;margin:0 auto;padding:24px 16px 60px}
+.top h1{font-size:40px;font-weight:900;margin:0}
+.top .sub{opacity:.8;margin-top:4px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0}
+.btn{border:0;border-radius:10px;padding:11px 18px;font-size:16px;font-weight:700;background:#fff;color:var(--bg2);box-shadow:0 4px 0 rgba(0,0,0,.25)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.btn.primary{background:linear-gradient(90deg,#F05235,#25BDF0);color:#fff}
+.btn.ghost{background:rgba(255,255,255,.15);color:#fff;box-shadow:none}
+.btn.big{font-size:22px;padding:16px 30px}
+.btn.danger{background:var(--bad);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.sets{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.set{background:var(--card);color:var(--ink);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.set h3{margin:0;font-size:20px}
+.set .meta{color:var(--muted);font-size:14px}
+.set .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.set .row .btn{box-shadow:none;border:1px solid var(--line);padding:8px 12px;font-size:14px}
+.set .row .btn.primary{border-color:transparent}
+.foot{margin-top:30px;opacity:.75;font-size:14px;word-break:break-all}
+.empty{opacity:.8;padding:30px;text-align:center}
+
+/* editor */
+.title-in{width:100%;font-size:26px;font-weight:700;padding:12px 16px;border-radius:12px;border:0;margin-bottom:16px}
+.qcard{background:#fff;color:var(--ink);border-radius:14px;padding:16px;margin-bottom:14px}
+.qhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.qnum{background:var(--bg2);color:#fff;border-radius:50%;width:32px;height:32px;display:grid;place-items:center;font-weight:700}
+.qhead select{padding:7px;border-radius:8px;border:1px solid var(--line)}
+.sp{flex:1}
+.ib{border:1px solid var(--line);background:#fff;border-radius:8px;width:36px;height:34px;font-size:15px}
+.qcard textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:18px;resize:vertical}
+.ans-ed{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.ae{display:flex;align-items:center;gap:8px;border:2px solid var(--c);border-radius:10px;padding:6px 8px}
+.ae .shape{background:var(--c);color:#fff;border-radius:6px;width:28px;height:28px;display:grid;place-items:center;font-size:14px;flex:none}
+.ae input[type=text],.ae input:not([type]){flex:1;min-width:0;border:0;outline:0;font-size:16px;padding:6px 2px}
+.ae input[type=radio]{width:20px;height:20px;accent-color:var(--ok);flex:none}
+.tfl{font-weight:700;padding:6px 2px}
+.hint{color:var(--muted);font-size:13px;margin-top:8px}
+.add{width:100%;padding:16px;font-size:18px}
+
+/* host stage */
+.stage{min-height:100vh;display:flex;flex-direction:column;padding:20px 28px;position:relative;z-index:1}
+.ico{width:1em;height:1em;display:block}
+.wrap,.pwrap{position:relative;z-index:1}
+.djlogo{display:none}
+.eq{display:none}
+
+/* ===== ערכת DJ — צבעי הלוגו של ללי שטרן ===== */
+body.theme-dj{--bg:#11171c;--bg2:#263238;--primary:#25BDF0;--bad:#F05235;--ok:#1fb86a;
+  background:radial-gradient(circle at 15% 0%,rgba(37,189,240,.28) 0,transparent 45%),radial-gradient(circle at 95% 100%,rgba(240,82,53,.28) 0,transparent 45%),linear-gradient(160deg,#263238,#11171c);background-attachment:fixed}
+.theme-dj .btn.primary{background:#25BDF0;color:#0d2430}
+.theme-dj .btn{color:#263238}
+.theme-dj .btn.ghost{color:#fff;background:rgba(255,255,255,.12)}
+.theme-dj .pill{background:rgba(37,189,240,.18);border:1px solid rgba(37,189,240,.4)}
+.theme-dj .qtext{border-bottom:6px solid #F05235}
+.theme-dj .ans .shape{font-size:46px}
+.theme-dj .pbtn .shape{font-size:56px}
+.theme-dj .ae .shape{font-size:20px}
+.theme-dj .tbar>div{background:linear-gradient(90deg,#F05235,#25BDF0)}
+.theme-dj .tbar.low>div{background:#F05235}
+.theme-dj .timer{position:relative;background:repeating-radial-gradient(circle,#0c0f12 0 3px,#1d2328 3px 5px);border-color:#25BDF0;color:#fff;text-shadow:0 2px 8px #000}
+.theme-dj .timer::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:6px solid transparent;border-top-color:#F05235;animation:spin 1.4s linear infinite}
+.theme-dj .timer.low{background:repeating-radial-gradient(circle,#2a0d08 0 3px,#3a140c 3px 5px);border-color:#F05235}
+.theme-dj .ptimer{background:#0c0f12;border-color:#25BDF0}
+.theme-dj .ptimer.low{background:#F05235}
+.theme-dj .joinbox .code{color:#263238}
+.theme-dj .joinbox .code{background:linear-gradient(90deg,#25BDF0,#F05235);-webkit-background-clip:text;background-clip:text;color:transparent}
+.theme-dj .brow .r{color:#F05235}
+.theme-dj .qnum{background:#263238}
+.theme-dj .tab.on{color:#263238}
+.theme-dj .kpi{border-top-color:#25BDF0}.theme-dj .kpi b{color:#263238}
+.theme-dj .tog input:checked+.sw{background:#25BDF0}
+.theme-dj .chip{border-inline-start:5px solid #25BDF0}
+.theme-dj .djlogo{display:block;background:#fff;border-radius:16px;padding:8px 14px}
+.theme-dj .djlogo img{display:block;width:100%;height:auto}
+.theme-dj .joinbox .djlogo{width:250px;margin:0 auto 10px;padding:0}
+.theme-dj .stage-top .djlogo{width:120px;padding:4px 8px;border-radius:10px}
+.theme-dj .pwrap .djlogo{width:240px;margin:0 auto}
+.theme-dj .pwrap .logo{display:none}
+.theme-dj .eq{display:flex;position:fixed;left:0;right:0;bottom:0;height:70px;gap:5px;align-items:flex-end;opacity:.22;pointer-events:none;z-index:0;padding:0 6px}
+
+/* ===== מסכי ניהול — עיצוב בהיר בצבעי המותג ===== */
+body.admin{--a-text:#263238;--a-muted:#6b7c85;--a-card:#fff;--a-line:#e3eaee;
+  background:radial-gradient(900px 600px at 90% -10%,rgba(37,189,240,.16),transparent 60%),radial-gradient(800px 600px at 0% 110%,rgba(240,82,53,.12),transparent 60%),#f4f7f9;
+  background-attachment:fixed;color:var(--a-text)}
+body.admin .eq{display:none}
+body.admin .wrap{max-width:1100px}
+.grad{background:linear-gradient(90deg,#F05235,#25BDF0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ahead{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:18px}
+.alogo{background:#fff;border-radius:16px;padding:6px 10px;width:140px;box-shadow:0 8px 26px rgba(37,189,240,.22);flex:none}
+.alogo img{display:block;width:100%;height:auto}
+.ahead h1{font-size:40px;font-weight:900;margin:0;line-height:1.1}
+.ahead .sub{color:var(--a-muted);margin-top:6px}
+.a-slogan{font-weight:900;font-size:22px}
+.statsrow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.mini{background:#fff;border:1px solid var(--a-line);border-radius:16px;padding:14px 18px;box-shadow:0 4px 16px rgba(38,50,56,.05)}
+.mini b{display:block;font-size:30px;font-weight:900;line-height:1.2}
+.mini span{color:var(--a-muted);font-size:13px}
+body.admin .btn{background:#fff;color:var(--a-text);border:1px solid #d9e2e7;box-shadow:0 2px 6px rgba(38,50,56,.05);border-radius:12px;transition:background .15s,transform .15s,filter .15s}
+body.admin .btn:hover{background:#f0f5f8}
+body.admin .btn:active{transform:translateY(1px)}
+body.admin .btn.primary{background:linear-gradient(90deg,#F05235,#25BDF0);border:0;color:#fff;box-shadow:0 6px 18px rgba(240,82,53,.25)}
+body.admin .btn.primary:hover{filter:brightness(1.06);transform:translateY(-1px)}
+body.admin .btn.ghost{background:transparent;box-shadow:none}
+body.admin .btn:disabled{opacity:.4;transform:none;filter:none}
+body.admin .sets{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+body.admin .set{background:#fff;border:1px solid var(--a-line);color:var(--a-text);border-radius:18px;padding:20px 18px 18px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s,box-shadow .2s;gap:12px;box-shadow:0 4px 18px rgba(38,50,56,.06)}
+body.admin .set::before{content:'';position:absolute;inset:0 0 auto 0;height:5px;background:linear-gradient(90deg,#F05235,#25BDF0)}
+body.admin .set.classic::before{background:linear-gradient(90deg,#e21b3c,#1368ce,#d89e00,#26890c)}
+body.admin .set:hover{transform:translateY(-3px);border-color:rgba(37,189,240,.5);box-shadow:0 14px 30px rgba(38,50,56,.12)}
+.sethead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tag{font-size:12px;font-weight:700;background:rgba(37,189,240,.13);color:#127ea6;border-radius:999px;padding:3px 11px}
+.set.classic .tag{background:#eef2f4;color:#55656d}
+.acts{display:flex;gap:2px}
+.icb{width:32px;height:32px;border-radius:9px;border:0;background:transparent;color:#8a9aa3;font-size:15px;display:grid;place-items:center}
+.icb:hover{background:#eef3f6;color:var(--a-text)}
+.icb.del:hover{background:#fde8e4;color:#d4432a}
+body.admin .set h3{font-size:22px;margin:0}
+body.admin .set .meta{display:flex;gap:14px;flex-wrap:wrap;color:var(--a-muted);font-size:13.5px}
+body.admin .set .row{display:flex;gap:8px}
+body.admin .set .row .btn{padding:10px 14px;font-size:15px;border:1px solid #d9e2e7}
+body.admin .set .row .btn.primary{flex:1;border:0}
+body.admin .newcard{border:2px dashed #c9d6dd;background:rgba(255,255,255,.5);box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:17px;font-weight:700;color:var(--a-muted);min-height:180px;cursor:pointer;font-family:inherit}
+body.admin .newcard::before{display:none}
+body.admin .newcard span{font-size:44px;line-height:1;color:#25BDF0}
+body.admin .newcard:hover{color:var(--a-text);border-color:#25BDF0;background:#fff}
+body.admin .foot{color:var(--a-muted);background:#fff;border:1px solid var(--a-line);border-radius:12px;padding:12px 16px}
+body.admin .foot b{color:#127ea6}
+body.admin .empty{color:var(--a-muted)}
+body.admin .title-in{background:#fff;color:var(--a-text);border:1px solid var(--a-line);box-shadow:0 4px 16px rgba(38,50,56,.05)}
+body.admin ::placeholder{color:#9aabb3}
+body.admin .tabs{background:#fff;padding:5px;border-radius:14px;border:1px solid var(--a-line);box-shadow:0 4px 16px rgba(38,50,56,.05)}
+body.admin .tab{background:transparent;color:var(--a-muted);border-radius:10px}
+body.admin .tab:hover{color:var(--a-text);background:#f4f7f9}
+body.admin .tab.on{background:linear-gradient(90deg,#F05235,#25BDF0);color:#fff}
+body.admin .qcard,body.admin .scard,body.admin .kpi,body.admin .run{background:#fff;border:1px solid var(--a-line);color:var(--a-text);box-shadow:0 4px 16px rgba(38,50,56,.05)}
+body.admin .qnum{background:linear-gradient(135deg,#F05235,#25BDF0)}
+body.admin select,body.admin textarea,body.admin .fld input,body.admin .fld select{background:#f7fafb;color:var(--a-text);border:1px solid #d9e2e7}
+body.admin .ae{background:#fff}
+body.admin .ae input:not([type=radio]){background:transparent;color:var(--a-text)}
+body.admin .ib{background:#f4f7f9;border-color:#d9e2e7;color:#455a64}
+body.admin .ib:hover{background:#e8eff3}
+body.admin .hint,body.admin .fld,body.admin .chk small,body.admin .kpi span{color:var(--a-muted)}
+body.admin .mb{background:#fff;border-color:#d9e2e7;color:var(--a-text)}
+body.admin .mb:hover{background:#f0f5f8}
+body.admin .btn.add{border:2px dashed #c9d6dd;background:rgba(255,255,255,.5);box-shadow:none;color:var(--a-muted)}
+body.admin .btn.add:hover{color:var(--a-text);border-color:#25BDF0;background:#fff}
+body.admin .scard h3{border-bottom-color:var(--a-line)}
+body.admin .sw{background:#cfd8dc}
+body.admin .tog input:checked+.sw{background:linear-gradient(90deg,#F05235,#25BDF0)}
+body.admin .summary span{background:#eef3f6;color:#455a64}
+body.admin .kpi{border-top:4px solid #25BDF0}
+body.admin .kpi b{color:var(--a-text)}
+body.admin .runhead:hover{background:#f7fafb}
+body.admin .runbody{border-top-color:var(--a-line)}
+body.admin .tbl th{color:var(--a-muted);border-bottom-color:var(--a-line)}
+body.admin .tbl td{border-bottom-color:#eef2f4}
+body.admin .hard td{background:#fdeeea}
+body.admin .slot.on{outline-color:var(--a-text)}
+body.admin .qcard.flash{outline-color:#F05235}
+body.admin .chk.ok .ic{background:#1fb86a}
+.slogan{display:none}
+.theme-dj .slogan{display:inline-block;font-weight:900;font-size:26px;background:linear-gradient(90deg,#F05235,#25BDF0);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:.5px}
+.theme-dj .slogan.big{display:block;font-size:46px;margin-bottom:18px}
+.theme-dj .pwrap .slogan{display:block;font-size:22px}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.slot{border:0;border-radius:10px;color:#fff;padding:10px 4px 8px;font-size:36px;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 3px 0 rgba(0,0,0,.2)}
+.slot small,.gi small{font-size:12px;font-weight:500}
+.slot.on{outline:3px solid #263238;outline-offset:3px}
+.gallery{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:12px;background:#263238;padding:10px;border-radius:12px}
+.gi{border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:9px 2px 7px;font-size:30px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.gi:hover{background:rgba(37,189,240,.35)}
+.gi.on{background:#25BDF0}
+.eq i{flex:1;height:100%;border-radius:3px 3px 0 0;background:linear-gradient(#F05235,#25BDF0);transform-origin:bottom;animation:eqb .9s ease-in-out infinite alternate}
+@keyframes eqb{from{transform:scaleY(.15)}to{transform:scaleY(1)}}
+.stage-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pill{background:rgba(255,255,255,.15);border-radius:999px;padding:8px 16px;font-weight:700}
+.lobby{flex:1;display:grid;grid-template-columns:auto 1fr;gap:36px;align-items:center;margin-top:20px}
+.joinbox{background:#fff;color:var(--ink);border-radius:20px;padding:24px;text-align:center}
+.joinbox .lbl{color:var(--muted);font-size:16px}
+.joinbox .code{font-size:84px;font-weight:900;letter-spacing:8px;color:var(--bg2);line-height:1.1;direction:ltr}
+#qr{display:flex;justify-content:center;margin:12px 0}
+.joinbox .url{font-size:13px;color:var(--muted);word-break:break-all;max-width:260px;margin:auto;direction:ltr}
+.lobby-r h2{font-size:34px;margin:0 0 14px}
+.chips{display:flex;flex-wrap:wrap;gap:10px;max-height:52vh;overflow:auto}
+.chip{background:#fff;color:var(--ink);font-weight:700;font-size:20px;padding:8px 18px;border-radius:999px;animation:pop .35s ease}
+.chip:hover{background:#ffd6dc;text-decoration:line-through}
+@keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+.stage-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:18px;gap:12px}
+.qtext{background:#fff;color:var(--ink);border-radius:16px;padding:26px;font-size:clamp(26px,4vw,46px);font-weight:700;text-align:center;margin:18px 0}
+.qmid{flex:1;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.timer{width:130px;height:130px;border-radius:50%;background:var(--bg2);border:6px solid #fff;display:grid;place-items:center;font-size:56px;font-weight:900}
+.timer.low{background:var(--bad);animation:pulse .5s infinite alternate}
+@keyframes pulse{to{transform:scale(1.08)}}
+.counter{text-align:center;font-size:22px}
+.counter b{display:block;font-size:56px}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ans{border-radius:12px;padding:22px 20px;font-size:clamp(20px,2.6vw,32px);font-weight:700;display:flex;align-items:center;gap:16px;color:#fff;position:relative;transition:opacity .3s}
+.ans .shape{font-size:30px;flex:none}
+.ans.dim{opacity:.3}
+.ans .ck{margin-inline-start:auto;font-size:34px}
+.bars{display:flex;justify-content:center;align-items:flex-end;gap:22px;height:200px}
+.bar{width:90px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.bar .b{width:100%;border-radius:8px 8px 0 0;transition:height .6s}
+.bar .n{font-size:26px;font-weight:900;margin-bottom:4px}
+.bar.dim{opacity:.35}
+.board{max-width:760px;margin:20px auto;width:100%}
+.board h2{text-align:center;font-size:44px;margin:10px 0 24px}
+.brow{display:flex;justify-content:space-between;align-items:center;background:#fff;color:var(--ink);border-radius:12px;padding:16px 22px;margin-bottom:10px;font-size:28px;font-weight:700;animation:slide .4s ease both}
+.brow .r{color:var(--bg2);margin-inline-end:16px}
+@keyframes slide{from{transform:translateY(20px);opacity:0}}
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:16px;margin-top:30px;flex:1}
+.pod{width:200px;text-align:center}
+.pod .nm{font-size:28px;font-weight:900;margin-bottom:6px}
+.pod .sc{opacity:.85;margin-bottom:8px}
+.pod .blk{border-radius:12px 12px 0 0;display:grid;place-items:start center;padding-top:14px;font-size:60px;font-weight:900;color:#2a1458}
+.confetti{position:fixed;top:-20px;width:12px;height:18px;z-index:9;animation:fall linear forwards;pointer-events:none}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
+/* player */
+.pwrap{max-width:440px;margin:0 auto;min-height:100vh;padding:24px 16px;display:flex;flex-direction:column;justify-content:center;gap:14px;text-align:center}
+.logo{font-size:38px;font-weight:900}
+.pwrap input{padding:16px;border-radius:12px;border:0;font-size:22px;text-align:center;font-weight:700}
+.perr{color:#ffd0d6;min-height:22px}
+.pbig{font-size:30px;font-weight:900}
+.psub{opacity:.85;font-size:18px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:60vh}
+.pgrid.two{grid-template-columns:1fr}
+.pbtn{border:0;border-radius:14px;color:#fff;font-size:20px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;box-shadow:0 6px 0 rgba(0,0,0,.25)}
+.pbtn .shape{font-size:44px}
+.pbtn:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.pq{background:rgba(255,255,255,.12);border-radius:12px;padding:12px;font-size:18px;font-weight:500}
+.ptop{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.tbar{height:14px;background:rgba(255,255,255,.18);border-radius:999px;overflow:hidden;margin:4px 0 10px}
+.tbar>div{height:100%;width:100%;background:var(--primary);border-radius:999px;transition:width .2s linear,background .3s}
+.tbar.low>div{background:var(--bad)}
+.ptimer{min-width:64px;height:64px;border-radius:50%;background:var(--bg2);border:4px solid #fff;display:grid;place-items:center;font-size:30px;font-weight:900}
+.ptimer.low{background:var(--bad);animation:pulse .5s infinite alternate}
+.result{border-radius:20px;padding:34px 16px}
+.result.ok{background:var(--ok)}
+.result.bad{background:var(--bad)}
+.result.none{background:rgba(255,255,255,.15)}
+.result .ico{font-size:72px;line-height:1}
+.spinner{width:56px;height:56px;border:6px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;margin:10px auto;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.mrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.mb{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:6px 10px;font-size:14px}
+.thumb{height:64px;max-width:120px;border-radius:6px;object-fit:cover;background:#ddd}
+iframe.thumb{width:114px;border:0}
+.athumb{position:relative;display:inline-flex}
+.athumb .x{position:absolute;top:-6px;left:-6px;background:var(--bad);color:#fff;border:0;border-radius:50%;width:20px;height:20px;font-size:12px;line-height:20px;padding:0}
+.ae .thumb{height:40px;max-width:70px}
+.ae iframe.thumb{width:70px}
+.qmedia{flex:1;display:flex;justify-content:center;align-items:center;min-height:0}
+.qm{max-height:36vh;max-width:100%;border-radius:12px;display:block;background:#000}
+iframe.qm{width:min(60vw,640px);height:auto;aspect-ratio:16/9;border:0}
+.am{height:100px;max-width:180px;object-fit:cover;border-radius:8px;background:rgba(0,0,0,.2);flex:none}
+iframe.am{width:178px;border:0}
+.am.big{height:24vh;max-width:none;width:auto;flex:1;object-fit:contain}
+iframe.am.big{aspect-ratio:16/9;width:auto}
+.polltag{display:inline-block;background:rgba(255,255,255,.18);border-radius:999px;padding:4px 12px;font-size:15px}
+
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{flex:1;border:0;border-radius:10px;padding:12px;font-size:17px;font-weight:700;background:rgba(255,255,255,.15);color:#fff}
+.tab.on{background:#fff;color:var(--bg2)}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.scard{background:#fff;color:var(--ink);border-radius:14px;padding:18px}
+.scard.wide{grid-column:1/-1}
+.scard h3{margin:0 0 14px;font-size:19px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.frow{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.fld{flex:1;min-width:170px;display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted)}
+.fld input,.fld select{padding:10px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:#fff}
+.fld small{font-size:12px}
+.togs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.tog{display:flex;align-items:center;gap:10px;font-size:15px;cursor:pointer}
+.tog input{display:none}
+.sw{width:44px;height:24px;border-radius:999px;background:#c9c6d6;position:relative;flex:none;transition:.2s}
+.sw::after{content:'';position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+.tog input:checked+.sw{background:var(--bg2)}
+.tog input:checked+.sw::after{right:23px}
+.fastest{display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:14px;font-size:22px;font-weight:700}
+.fastest span{background:rgba(255,255,255,.15);border-radius:999px;padding:6px 16px}
+.autolbl{opacity:.8;font-size:18px}
+.brow .side{display:flex;gap:16px;align-items:center}
+.delta{font-size:20px}.delta.up{color:var(--ok)}.delta.down{color:var(--bad)}
+.streak{font-size:22px}
+.biglist{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;max-width:960px;margin:18px auto 0;width:100%}
+.biglist div{background:rgba(255,255,255,.15);border-radius:10px;padding:8px 14px;display:flex;justify-content:space-between;font-size:18px}
+.watchbox{display:flex;gap:12px;align-items:center;justify-content:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);text-align:right}
+
+.chk{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:16px}
+.chk .ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:14px;flex:none}
+.chk.ok .ic{background:var(--ok)}.chk.bad .ic{background:var(--bad)}.chk.warn .ic{background:#d89e00}
+.chk small{color:var(--muted)}
+.summary{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.summary span{background:#f1eff8;border-radius:999px;padding:6px 14px;font-size:14px}
+.qcard.flash{outline:4px solid var(--bad)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+.kpi{background:#fff;color:var(--ink);border-radius:14px;padding:18px;text-align:center;border-top:4px solid var(--primary)}
+.kpi b{display:block;font-size:34px;font-weight:900;color:var(--bg2)}
+.kpi span{color:var(--muted);font-size:14px}
+.run{background:#fff;color:var(--ink);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.runhead{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:14px 18px;cursor:pointer}
+.runhead:hover{background:#f7f6fb}
+.runhead .dt{font-weight:700}
+.runhead .tag{background:#fff3c4;color:#6b5000;border-radius:999px;padding:2px 10px;font-size:13px}
+.runbody{padding:4px 18px 18px;border-top:1px solid var(--line)}
+.runbody h4{margin:16px 0 8px}
+.tbl{width:100%;border-collapse:collapse;font-size:15px}
+.tbl th{text-align:right;color:var(--muted);font-weight:500;border-bottom:1px solid var(--line);padding:6px 8px}
+.tbl td{padding:7px 8px;border-bottom:1px solid #f0eef6}
+.pct{display:inline-block;min-width:44px;font-weight:700}
+.pbar{display:inline-block;height:8px;border-radius:4px;background:var(--ok);vertical-align:middle;margin-inline-start:6px}
+.hard td{background:#fff0f2}
+
+@media (max-width:760px){
+  .statsrow{grid-template-columns:1fr 1fr}
+  .ahead h1{font-size:30px}
+  .alogo{width:100px}
+  .gallery{grid-template-columns:repeat(4,1fr)}
+  .sgrid,.togs{grid-template-columns:1fr}
+  .kpis{grid-template-columns:1fr}
+  .lobby{grid-template-columns:1fr}
+  .answers{grid-template-columns:1fr}
+  .qmid .timer{width:90px;height:90px;font-size:38px}
+  .ans-ed{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="banner"></div>
+<div id="app"></div>
+<div class="eq" id="eq"></div>
+<script>
+/* =====================================================================
+   הגדרות Firebase — להדביק כאן את ההגדרות מ-Firebase Console.
+   כל עוד זה null, המשחק עובד במצב בדיקה מקומי (לשוניות על אותו מחשב).
+   ===================================================================== */
+const FIREBASE_CONFIG = null;
+
+const svg = inner => `<svg class="ico" viewBox="0 0 24 24">${inner}</svg>`;
+// אייקוני DJ — לבנים (currentColor) עם פרטים כהים שקופים, viewBox 24
+const DJ_ICONS = {
+  turntable: { name: 'פטיפון', svg: '<rect x="1.5" y="3" width="21" height="18" rx="3.5" fill="currentColor" opacity=".35"/><circle cx="10" cy="12" r="7.2" fill="currentColor"/><circle cx="10" cy="12" r="5" fill="none" stroke="rgba(0,0,0,.22)" stroke-width=".8"/><circle cx="10" cy="12" r="3.2" fill="none" stroke="rgba(0,0,0,.22)" stroke-width=".8"/><circle cx="10" cy="12" r="1.6" fill="rgba(0,0,0,.4)"/><path d="M19.6 5.6v8.2l-4.2 3.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19.6" cy="5.6" r="1.7" fill="currentColor"/>' },
+  mixer: { name: 'מיקסר', svg: '<rect x="2" y="3" width="20" height="18" rx="3.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M7 7.5v9M12 7.5v9M17 7.5v9" stroke="currentColor" stroke-width="1.3" opacity=".55" stroke-linecap="round"/><rect x="4.8" y="12" width="4.4" height="3.2" rx="1" fill="currentColor"/><rect x="9.8" y="7.6" width="4.4" height="3.2" rx="1" fill="currentColor"/><rect x="14.8" y="13.4" width="4.4" height="3.2" rx="1" fill="currentColor"/>' },
+  speaker: { name: 'רמקול', svg: '<rect x="4.5" y="1.5" width="15" height="21" rx="3.2" fill="currentColor"/><circle cx="12" cy="6.8" r="2.3" fill="rgba(0,0,0,.3)"/><circle cx="12" cy="15.2" r="5.2" fill="rgba(0,0,0,.3)"/><circle cx="12" cy="15.2" r="2.1" fill="currentColor"/>' },
+  disco: { name: 'כדור דיסקו', svg: '<path d="M12 .5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="13.5" r="9" fill="currentColor"/><path d="M3 13.5h18M4.3 9h15.4M4.3 18h15.4M12 4.5c-3.2 3-3.2 15 0 18M12 4.5c3.2 3 3.2 15 0 18M7.4 5.8c-2.2 4-2.2 11.4 0 15.4M16.6 5.8c2.2 4 2.2 11.4 0 15.4" fill="none" stroke="rgba(0,0,0,.28)" stroke-width=".8"/><path d="M20.6 1.4l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z" fill="currentColor"/>' },
+  headphones: { name: 'אוזניות', svg: '<path d="M3.5 14.5v-2.5a8.5 8.5 0 0 1 17 0v2.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="2" y="13" width="6" height="9" rx="2.4" fill="currentColor"/><rect x="16" y="13" width="6" height="9" rx="2.4" fill="currentColor"/><rect x="3.6" y="15" width="2.8" height="5" rx="1.2" fill="rgba(0,0,0,.25)"/><rect x="17.6" y="15" width="2.8" height="5" rx="1.2" fill="rgba(0,0,0,.25)"/>' },
+  eq: { name: 'אקולייזר', svg: '<rect x="2.4" y="12" width="3.4" height="10" rx="1.2" fill="currentColor"/><rect x="7.4" y="5" width="3.4" height="17" rx="1.2" fill="currentColor"/><rect x="12.4" y="9" width="3.4" height="13" rx="1.2" fill="currentColor"/><rect x="17.4" y="2" width="3.4" height="20" rx="1.2" fill="currentColor"/>' },
+  mic: { name: 'מיקרופון', svg: '<circle cx="15.5" cy="8.5" r="6" fill="currentColor"/><path d="M11.3 12.7l-8 8.4" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M12.2 4.4l7.4 7.4" stroke="rgba(0,0,0,.25)" stroke-width="1.2"/><path d="M11 8.2a4.6 4.6 0 0 1 4.3-4.3" fill="none" stroke="rgba(0,0,0,.25)" stroke-width="1"/>' },
+  notes: { name: 'תווים', svg: '<path d="M9 18V5.5l11-2.5v12.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M9 9.5l11-2.5" stroke="currentColor" stroke-width="2.6"/><ellipse cx="6" cy="18" rx="3.4" ry="2.8" fill="currentColor"/><ellipse cx="17" cy="15.5" rx="3.4" ry="2.8" fill="currentColor"/>' },
+  vinyl: { name: 'תקליט', svg: '<circle cx="12" cy="12" r="10.5" fill="currentColor"/><circle cx="12" cy="12" r="8" fill="none" stroke="rgba(0,0,0,.2)" stroke-width=".8"/><circle cx="12" cy="12" r="6" fill="none" stroke="rgba(0,0,0,.2)" stroke-width=".8"/><circle cx="12" cy="12" r="3.4" fill="rgba(0,0,0,.35)"/><circle cx="12" cy="12" r="1" fill="currentColor"/><path d="M5.5 7.5a7.8 7.8 0 0 1 4-3.2" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.2" stroke-linecap="round"/>' },
+  bolt: { name: 'ברק אנרגיה', svg: '<path d="M13.5 1.5L4 13.5h6.5L9 22.5l10.5-13H13z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>' },
+  dance: { name: 'רוקדת', svg: '<circle cx="13" cy="3.6" r="2.4" fill="currentColor"/><path d="M12.4 7.5l-1.8 6 4 3.5-1.5 5.5M10.6 13.5l-4.5 3M12.4 7.5L7 6M12.4 7.5l5.5 3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>' },
+  party: { name: 'מסיבה', svg: '<path d="M3 21.5l5.5-14 8.5 8.5z" fill="currentColor"/><path d="M5.5 15.3l3.2 3.2M7.3 10.8l5.9 5.9" stroke="rgba(0,0,0,.25)" stroke-width="1.2"/><path d="M14 3.5c1 1.2.6 2.5-.5 3.2M18.5 9.5c1.3-.8 2.7-.5 3.2.7M16.8 5.8l1.2-2.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="20.5" cy="4" r="1.2" fill="currentColor"/><circle cx="11" cy="2.2" r="1" fill="currentColor"/>' },
+};
+const DJ_DEFAULT_ICONS = ['turntable', 'mixer', 'speaker', 'disco'];
+const djShapes = icons => [0, 1, 2, 3].map(j => svg((DJ_ICONS[(icons || [])[j]] || DJ_ICONS[DJ_DEFAULT_ICONS[j]]).svg));
+const THEMES = {
+  classic: { colors: ['#e21b3c', '#1368ce', '#d89e00', '#26890c'], shapes: ['▲', '◆', '●', '■'], tf: ['#1368ce', '#e21b3c'] },
+  dj: {
+    colors: ['#25BDF0', '#F05235', '#1E6FA8', '#F59E0B'], tf: ['#25BDF0', '#F05235'],
+    shapes: [
+      ...djShapes(DJ_DEFAULT_ICONS)
+    ]
+  }
+};
+let THEME = 'classic', COLORS = THEMES.classic.colors, SHAPES = THEMES.classic.shapes, TF_COLORS = THEMES.classic.tf;
+function setTheme(name, icons) {
+  if (!THEMES[name]) name = 'classic';
+  THEME = name; ({ colors: COLORS, shapes: SHAPES, tf: TF_COLORS } = THEMES[name]);
+  if (name === 'dj') SHAPES = djShapes(icons);
+  document.body.classList.toggle('theme-dj', name === 'dj');
+}
+const slogan = (cls = '') => THEME === 'dj' ? `<span class="slogan ${cls}">תרקדי. תשתחררי. תהני</span>` : '';
+const djLogo = () => THEME === 'dj' ? '<div class="djlogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>' : '';
+const app = document.getElementById('app');
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const ansColor = (q, j) => q.tf ? TF_COLORS[j] : COLORS[j];
+
+/* ====================== שכבת נתונים ====================== */
+function splitPath(p) { return p.split('/').filter(Boolean); }
+function getAt(tree, parts) { let n = tree; for (const k of parts) { if (n == null || typeof n !== 'object') return null; n = n[k]; } return n ?? null; }
+function setAt(tree, parts, val) {
+  let n = tree;
+  for (let i = 0; i < parts.length - 1; i++) { if (typeof n[parts[i]] !== 'object' || n[parts[i]] == null) n[parts[i]] = {}; n = n[parts[i]]; }
+  const last = parts[parts.length - 1];
+  if (val === null || val === undefined) delete n[last]; else n[last] = JSON.parse(JSON.stringify(val));
+}
+
+// מצב בדיקה: localStorage משותף בין לשוניות באותו דפדפן
+const LocalDB = {
+  key: 'trivia_local_db', subs: [],
+  init() { window.addEventListener('storage', e => { if (e.key === this.key) this.emit(); }); },
+  read() { try { return JSON.parse(localStorage.getItem(this.key)) || {}; } catch (e) { return {}; } },
+  write(t) { localStorage.setItem(this.key, JSON.stringify(t)); this.emit(); },
+  emit() {
+    const t = this.read();
+    for (const s of this.subs) {
+      const v = getAt(t, s.parts), j = JSON.stringify(v);
+      if (j !== s.last) { s.last = j; s.cb(v == null ? null : JSON.parse(j)); }
+    }
+  },
+  async get(p) { return getAt(this.read(), splitPath(p)); },
+  async set(p, v) { const t = this.read(); setAt(t, splitPath(p), v); this.write(t); },
+  async update(p, obj) { const t = this.read(); const base = splitPath(p); for (const k in obj) setAt(t, base.concat(splitPath(k)), obj[k]); this.write(t); },
+  async remove(p) { return this.set(p, null); },
+  on(p, cb) {
+    const s = { parts: splitPath(p), cb, last: undefined };
+    this.subs.push(s);
+    const v = getAt(this.read(), s.parts); s.last = JSON.stringify(v); cb(v);
+    return () => { this.subs = this.subs.filter(x => x !== s); };
+  },
+  now() { return Date.now(); }
+};
+
+// מצב אמיתי: Firebase Realtime Database
+const FireDB = {
+  offset: 0,
+  init() {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    this.db = firebase.database();
+    this.db.ref('.info/serverTimeOffset').on('value', s => { this.offset = s.val() || 0; });
+  },
+  async get(p) { return (await this.db.ref(p).get()).val(); },
+  set(p, v) { return this.db.ref(p).set(v); },
+  update(p, obj) { return this.db.ref(p).update(obj); },
+  remove(p) { return this.db.ref(p).remove(); },
+  on(p, cb) { const r = this.db.ref(p); const h = s => cb(s.val()); r.on('value', h); return () => r.off('value', h); },
+  now() { return Date.now() + this.offset; }
+};
+
+const ONLINE = !!FIREBASE_CONFIG;
+const DB = ONLINE ? FireDB : LocalDB;
+DB.init();
+const PSTORE = ONLINE ? localStorage : sessionStorage;
+
+/* ====================== צלילים ====================== */
+let actx;
+function beep(f, d = .15, type = 'sine', v = .15) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.type = type; o.frequency.value = f; g.gain.value = v;
+    o.connect(g); g.connect(actx.destination);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.start(t); o.stop(t + d);
+  } catch (e) {}
+}
+const ding = () => { beep(660, .15); setTimeout(() => beep(880, .3), 140); };
+
+/* ====================== תמונות וסרטונים (נשמרים במחשב של המנחה) ====================== */
+const Media = {
+  dbp: null, cache: {},
+  open() {
+    return this.dbp || (this.dbp = new Promise((res, rej) => {
+      const r = indexedDB.open('trivia_media', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('files');
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    }));
+  },
+  async put(blob) {
+    const id = rid(), db = await this.open();
+    await new Promise((res, rej) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(blob, id); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+    return 'idb:' + id;
+  },
+  async url(src) {
+    if (!String(src).startsWith('idb:')) return src;
+    if (this.cache[src]) return this.cache[src];
+    const db = await this.open();
+    const blob = await new Promise(res => { const r = db.transaction('files').objectStore('files').get(src.slice(4)); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
+    return blob ? (this.cache[src] = URL.createObjectURL(blob)) : '';
+  }
+};
+const ytId = u => { const m = String(u).match(/(?:youtu\.be\/|[?&]v=|shorts\/|embed\/)([\w-]{11})/); return m && m[1]; };
+// opts: auto = מתנגן מיד עם קול, muted = מתנגן בלופ בלי קול
+function mediaHtml(ref, cls, opts = {}) {
+  if (!ref || !ref.src) return '';
+  if (ref.kind === 'youtube') {
+    const p = opts.muted ? 'autoplay=1&mute=1&loop=1&controls=0' : (opts.auto ? 'autoplay=1' : '');
+    return `<iframe class="${cls}" src="https://www.youtube.com/embed/${ytId(ref.src)}?rel=0&${p}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  }
+  if (ref.kind === 'video') {
+    const a = opts.muted ? 'muted loop autoplay' : opts.auto ? 'autoplay controls' : 'controls';
+    return `<video class="${cls}" data-src="${esc(ref.src)}" ${a} playsinline></video>`;
+  }
+  return `<img class="${cls}" data-src="${esc(ref.src)}" alt="">`;
+}
+async function hydrateMedia(root = document) {
+  for (const el of root.querySelectorAll('[data-src]')) {
+    const src = el.dataset.src; el.removeAttribute('data-src');
+    el.src = await Media.url(src);
+  }
+}
+
+/* ====================== מאגר שאלות מוכן ====================== */
+const mc = (text, answers, correct, time = 20) => ({ text, answers, correct, time, tf: false });
+const tf = (text, isTrue, time = 15) => ({ text, answers: ['נכון', 'לא נכון'], correct: isTrue ? 0 : 1, time, tf: true });
+const BANK = [
+  { id: 'bank-general', title: 'ידע כללי', questions: [
+    mc('מהי עיר הבירה של אוסטרליה?', ['סידני', 'קנברה', 'מלבורן', 'פרת\''], 1),
+    mc('כמה רגליים יש לעכביש?', ['6', '8', '10', '12'], 1),
+    mc('מהו כוכב הלכת הגדול ביותר במערכת השמש?', ['שבתאי', 'נפטון', 'צדק', 'כדור הארץ'], 2),
+    mc('מהו הסמל הכימי של זהב?', ['Ag', 'Go', 'Gd', 'Au'], 3),
+    mc('כמה צלעות יש למשושה?', ['5', '6', '7', '8'], 1),
+    mc('מהו האוקיינוס הגדול בעולם?', ['האטלנטי', 'ההודי', 'השקט', 'הקרח הצפוני'], 2),
+    mc('מי צייר את המונה ליזה?', ['מיכלאנג\'לו', 'רפאל', 'ון גוך', 'לאונרדו דה וינצ\'י'], 3),
+    mc('באיזו יבשת נמצאת מצרים?', ['אפריקה', 'אסיה', 'אירופה', 'דרום אמריקה'], 0),
+    mc('כמה דקות יש בשעה וחצי?', ['60', '90', '100', '150'], 1),
+    mc('מהו היונק הגדול ביותר בעולם?', ['פיל אפריקני', 'ג\'ירפה', 'לווייתן כחול', 'היפופוטם'], 2),
+    tf('מבחינה בוטנית, העגבנייה היא פרי', true),
+    mc('מהו ההר הגבוה בעולם?', ['קילימנג\'רו', 'מון בלאן', 'האוורסט', 'אלברוס'], 2),
+  ]},
+  { id: 'bank-israel', title: 'ארץ ישראל', questions: [
+    mc('מהו אגם המים המתוקים הגדול בישראל?', ['ים המלח', 'הכנרת', 'בריכת רם', 'אגם החולה'], 1),
+    mc('מי היה ראש הממשלה הראשון של מדינת ישראל?', ['משה שרת', 'לוי אשכול', 'דוד בן-גוריון', 'גולדה מאיר'], 2),
+    mc('באיזו שנה קמה מדינת ישראל?', ['1945', '1948', '1950', '1956'], 1),
+    mc('מהי העיר הדרומית ביותר בישראל?', ['באר שבע', 'דימונה', 'מצפה רמון', 'אילת'], 3),
+    mc('היכן נמצאת הנקודה הנמוכה ביותר ביבשה בעולם?', ['ים המלח', 'הכנרת', 'עמק החולה', 'מכתש רמון'], 0),
+    mc('איזה נהר זורם אל הכנרת?', ['הירקון', 'הקישון', 'הירדן', 'נחל שורק'], 2),
+    mc('מהי הציפור הלאומית של ישראל?', ['דוכיפת', 'בולבול', 'עפרוני', 'נשר'], 0),
+    mc('מהו הפרח הלאומי של ישראל?', ['רקפת', 'כלנית', 'נורית', 'חצב'], 1),
+    tf('תל אביב היא העיר הגדולה ביותר בישראל במספר התושבים', false),
+    mc('מה מופיע במרכז דגל ישראל?', ['מנורה', 'מגן דוד', 'אריה', 'עץ זית'], 1),
+    mc('מהו המכתש הגדול בישראל?', ['המכתש הגדול', 'המכתש הקטן', 'מכתש רמון', 'מכתש עדה'], 2),
+    mc('איזה הר הוא הגבוה בשטח שבשליטת ישראל?', ['מירון', 'החרמון', 'תבור', 'הכרמל'], 1),
+  ]},
+  { id: 'bank-tanach', title: 'תנ"ך ויהדות', questions: [
+    mc('כמה חומשים יש בתורה?', ['3', '4', '5', '7'], 2),
+    mc('מי הוציא את בני ישראל ממצרים?', ['אברהם', 'משה', 'יהושע', 'דוד'], 1),
+    mc('כמה מכות הביא הקב"ה על מצרים?', ['7', '10', '12', '40'], 1),
+    mc('מי ניצח את גלית הפלשתי?', ['שאול', 'יונתן', 'שמשון', 'דוד'], 3),
+    mc('כמה שבטים היו בעם ישראל?', ['10', '12', '13', '7'], 1),
+    mc('באיזה חג קוראים את מגילת אסתר?', ['פורים', 'פסח', 'שבועות', 'חנוכה'], 0),
+    mc('מי היה אביו של יוסף?', ['יצחק', 'אברהם', 'יעקב', 'לבן'], 2),
+    mc('כמה ימים נמשך חג החנוכה?', ['7', '8', '9', '10'], 1),
+    mc('מי בנה את בית המקדש הראשון?', ['דוד המלך', 'שלמה המלך', 'שאול המלך', 'חזקיהו המלך'], 1),
+    mc('באיזה חודש חל ראש השנה?', ['ניסן', 'אלול', 'תשרי', 'חשוון'], 2),
+    mc('מהו החומש האחרון בתורה?', ['במדבר', 'ויקרא', 'שמות', 'דברים'], 3),
+    mc('איזה נביא נבלע בבטן הדג?', ['יונה', 'אליהו', 'ירמיהו', 'עמוס'], 0),
+    tf('נח הכניס לתיבה רק זוג אחד מכל סוגי הבהמות הטהורות', false),
+  ]},
+];
+
+/* ====================== שמירת משחקים (במחשב) ====================== */
+const SETS_KEY = 'trivia_sets';
+function loadSets() {
+  try { const s = JSON.parse(localStorage.getItem(SETS_KEY)); if (Array.isArray(s)) return s; } catch (e) {}
+  const s = JSON.parse(JSON.stringify(BANK)); saveSets(s); return s;
+}
+function saveSets(s) { localStorage.setItem(SETS_KEY, JSON.stringify(s)); }
+function joinBase() { return location.href.split('?')[0].split('#')[0]; }
+
+// מנקה שאלות לפני משחק: מוריד תשובות ריקות (בלי טקסט ובלי תמונה) ומעדכן את אינדקס התשובה הנכונה
+function normQs(qs) {
+  const out = [];
+  for (const q of qs || []) {
+    const text = String(q.text || '').trim(); if (!text) continue;
+    const am = q.amedia || [];
+    const pairs = (q.answers || []).map((a, j) => ({ a: String(a || '').trim(), m: am[j] || null, ok: j === q.correct })).filter(p => p.a || p.m);
+    const correct = q.poll ? -1 : pairs.findIndex(p => p.ok);
+    if (pairs.length < 2 || (!q.poll && correct < 0)) continue;
+    const o = { text, answers: pairs.map(p => p.a), correct, time: +q.time || 20, tf: !!q.tf, poll: !!q.poll };
+    if (q.media && q.media.src) o.media = q.media;
+    if (pairs.some(p => p.m)) o.amedia = pairs.map(p => p.m);
+    out.push(o);
+  }
+  return out;
+}
+const qType = q => q.poll ? 'poll' : q.tf ? 'tf' : 'mc';
+
+/* ====================== הגדרות משחק ====================== */
+const DEFAULT_SETTINGS = {
+  theme: 'classic', djIcons: DJ_DEFAULT_ICONS, qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
+  showAnswersPhone: true, lateJoin: true,
+  scoring: 'speed', boardWhen: 'each', boardEvery: 3, resultsSec: 10,
+  showCorrect: true, showFastest: true, showBoard: true, showRankChange: true, showStreak: true, autoNext: false,
+  remoteView: false
+};
+const getSettings = set => ({ ...DEFAULT_SETTINGS, ...((set && set.settings) || {}) });
+
+/* ====================== מסך ראשי ====================== */
+function showBanner() {
+  const b = $('banner');
+  if (!ONLINE) { b.innerHTML = 'מצב בדיקה: אפשר לשחק רק בלשוניות על אותו מחשב. כדי שטלפונים יוכלו להתחבר צריך לחבר Firebase.'; b.classList.add('show'); }
+}
+
+function renderHome() {
+  window.onkeydown = null;
+  setTheme('classic');
+  const sets = loadSets(), runsBySet = {};
+  loadRuns().forEach(r => { runsBySet[r.setId] = (runsBySet[r.setId] || 0) + 1; });
+  const runs = loadRuns();
+  const totalQs = sets.reduce((t, x) => t + normQs(x.questions).length, 0);
+  const totalPlayers = runs.reduce((t, r) => t + r.players.length, 0);
+  document.body.classList.add('admin');
+  app.innerHTML = `<div class="wrap">
+    <header class="ahead">
+      <div class="brand">
+        <div class="alogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>
+        <div><h1>טריוויה <span class="grad">קליקרים</span></h1><div class="sub">השאלות על המסך הגדול · עונים מהטלפון</div></div>
+      </div>
+      <div class="a-slogan grad">תרקדי. תשתחררי. תהני</div>
+    </header>
+    <div class="statsrow">
+      <div class="mini"><b>${sets.length}</b><span>משחקים</span></div>
+      <div class="mini"><b>${totalQs}</b><span>שאלות במאגר</span></div>
+      <div class="mini"><b>${runs.length}</b><span>הפעלות</span></div>
+      <div class="mini"><b>${totalPlayers}</b><span>משתתפים עד היום</span></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn primary" onclick="newSet()">+ משחק חדש</button>
+      <button class="btn" onclick="$('xl').click()">⬆ ייבוא מאקסל</button>
+      <button class="btn" onclick="downloadTemplate()">⬇ תבנית אקסל</button>
+      <span class="sp"></span>
+      <button class="btn ghost" onclick="restoreBank()">↺ שחזור המאגר המוכן</button>
+      <input type="file" id="xl" accept=".xlsx,.xls,.csv" hidden onchange="importExcel(this)">
+    </div>
+    <div class="sets">${sets.map(x => {
+      const c = getSettings(x), qs = normQs(x.questions), n = runsBySet[x.id] || 0;
+      const mins = Math.max(1, Math.round(qs.reduce((t, q) => t + q.time + 10, 0) / 60));
+      return `
+      <div class="set ${c.theme === 'dj' ? 'dj' : 'classic'}">
+        <div class="sethead">
+          <span class="tag">${c.theme === 'dj' ? '🎧 ערכת DJ' : '🎨 קלאסי'}</span>
+          <span class="acts">
+            <button class="icb" title="שכפול" onclick="dupSet('${x.id}')">⧉</button>
+            <button class="icb" title="ייצוא לאקסל" onclick="exportSet('${x.id}')">⬇</button>
+            <button class="icb del" title="מחיקה" onclick="delSet('${x.id}')">🗑</button>
+          </span>
+        </div>
+        <h3>${esc(x.title || 'ללא שם')}</h3>
+        <div class="meta"><span>❓ ${qs.length} שאלות</span><span>⏱ כ-${mins} דק'</span>${n ? `<span>▶ ${n} הפעלות</span>` : ''}</div>
+        <div class="row">
+          <button class="btn primary" onclick="startGame('${x.id}')">▶ הפעלה</button>
+          <button class="btn" onclick="editSet('${x.id}')">✏ עריכה</button>
+        </div>
+      </div>`; }).join('')}
+      <button class="set newcard" onclick="newSet()"><span>+</span>משחק חדש</button>
+    </div>
+    <div class="foot">🔗 כתובת הכניסה למשתתפים: <b dir="ltr">${esc(joinBase())}?play</b></div>
+  </div>`;
+}
+
+function newSet() { editing = { id: rid(), title: '', questions: [], settings: { ...DEFAULT_SETTINGS }, tab: 'q', isNew: true }; editing.questions.push(blankQ()); renderEditor(); }
+function editSet(id) {
+  const s = loadSets().find(x => x.id === id); if (!s) return;
+  editing = JSON.parse(JSON.stringify(s));
+  editing.questions = editing.questions.map(q => q.tf ? q : { ...q, answers: [0, 1, 2, 3].map(j => q.answers[j] || ''), amedia: [0, 1, 2, 3].map(j => (q.amedia || [])[j] || null) });
+  editing.settings = getSettings(s); editing.tab = 'q';
+  if (!editing.questions.length) editing.questions.push(blankQ());
+  renderEditor();
+}
+function dupSet(id) {
+  const sets = loadSets(), s = sets.find(x => x.id === id); if (!s) return;
+  sets.push({ ...JSON.parse(JSON.stringify(s)), id: rid(), title: s.title + ' (עותק)' });
+  saveSets(sets); renderHome();
+}
+function delSet(id) {
+  const sets = loadSets(), s = sets.find(x => x.id === id);
+  if (!s || !confirm(`למחוק את "${s.title}"?`)) return;
+  saveSets(sets.filter(x => x.id !== id)); renderHome();
+}
+function restoreBank() {
+  const sets = loadSets();
+  for (const b of BANK) { const i = sets.findIndex(s => s.id === b.id); const c = JSON.parse(JSON.stringify(b)); if (i >= 0) sets[i] = c; else sets.push(c); }
+  saveSets(sets); renderHome();
+}
+
+/* ====================== עורך שאלות ====================== */
+let editing = null;
+const blankQ = () => ({ text: '', answers: ['', '', '', ''], amedia: [null, null, null, null], media: null, correct: 0, time: (editing && editing.settings && editing.settings.qTime) || 20, tf: false, poll: false });
+
+function renderEditor() {
+  const s = editing;
+  document.body.classList.add('admin');
+  setTheme(s.settings && s.settings.theme, s.settings && s.settings.djIcons);
+  app.innerHTML = `<div class="wrap">
+    <div class="toolbar">
+      <button class="btn ghost" onclick="renderHome()">→ חזרה בלי לשמור</button>
+      <span class="sp"></span>
+      <button class="btn primary" onclick="saveEdit()">שמירה</button>
+    </div>
+    <input class="title-in" value="${esc(s.title)}" oninput="editing.title=this.value" placeholder="שם המשחק">
+    <div class="tabs">
+      ${[['q', `שאלות (${s.questions.length})`], ['s', '⚙ הגדרות'], ['a', '▶ הפעלה'], ['st', '📊 סטטיסטיקות']].map(([k, t]) =>
+        `<button class="tab ${(s.tab || 'q') === k ? 'on' : ''}" onclick="editing.tab='${k}';renderEditor()">${t}</button>`).join('')}
+    </div>
+    ${s.tab === 's' ? settingsHtml() : s.tab === 'a' ? activateHtml() : s.tab === 'st' ? statsHtml() : s.questions.map(qEditor).join('') + '<button class="btn add" onclick="addQ()">+ הוספת שאלה</button>'}
+    <input type="file" id="mfile" accept="image/*,video/*" hidden onchange="mediaPicked(this)">
+  </div>`;
+  hydrateMedia(app);
+}
+function mediaSlot(ref, i, j) {
+  if (ref && ref.src) return `<span class="athumb">${mediaHtml(ref, 'thumb')}<button class="x" title="הסרה" onclick="clearMedia(${i},${j})">✕</button></span>`;
+  return `<button class="mb" title="תמונה או סרטון מהמחשב" onclick="pickMedia(${i},${j})">🖼${j < 0 ? ' תמונה / סרטון' : ''}</button>` +
+    (j < 0 ? `<button class="mb" onclick="linkMedia(${i},${j})">🔗 קישור (גם YouTube)</button>` : '');
+}
+function qEditor(q, i) {
+  return `<div class="qcard" id="qc${i}">
+    <div class="qhead">
+      <span class="qnum">${i + 1}</span>
+      <select onchange="setType(${i},this.value)">
+        <option value="mc" ${qType(q) === 'mc' ? 'selected' : ''}>תשובות לבחירה</option>
+        <option value="tf" ${qType(q) === 'tf' ? 'selected' : ''}>נכון / לא נכון</option>
+        <option value="poll" ${qType(q) === 'poll' ? 'selected' : ''}>סקר (בלי תשובה נכונה)</option>
+      </select>
+      <select onchange="editing.questions[${i}].time=+this.value">
+        ${[...new Set([5, 10, 15, 20, 30, 45, 60, 90, 120, +q.time || 20])].sort((x, y) => x - y).map(t => `<option value="${t}" ${q.time == t ? 'selected' : ''}>${t} שניות</option>`).join('')}
+      </select>
+      <span class="sp"></span>
+      <button class="ib" title="למעלה" onclick="moveQ(${i},-1)">▲</button>
+      <button class="ib" title="למטה" onclick="moveQ(${i},1)">▼</button>
+      <button class="ib" title="מחיקה" onclick="delQ(${i})">🗑</button>
+    </div>
+    <textarea oninput="editing.questions[${i}].text=this.value" placeholder="כתבי כאן את השאלה">${esc(q.text)}</textarea>
+    <div class="mrow">${mediaSlot(q.media, i, -1)}</div>
+    <div class="ans-ed">${q.answers.map((a, j) => `
+      <div class="ae" style="--c:${ansColor(q, j)}">
+        ${q.poll ? '' : `<input type="radio" name="c${i}" ${q.correct == j ? 'checked' : ''} onchange="editing.questions[${i}].correct=${j}">`}
+        <span class="shape">${q.tf ? (j ? '✘' : '✔') : SHAPES[j]}</span>
+        ${q.tf ? `<span class="tfl">${esc(a)}</span>` : `<input value="${esc(a)}" oninput="editing.questions[${i}].answers[${j}]=this.value" placeholder="תשובה ${j + 1}${j >= 2 ? ' (לא חובה)' : ''}">${mediaSlot((q.amedia || [])[j], i, j)}`}
+      </div>`).join('')}
+    </div>
+    <div class="hint">${q.poll ? 'בסקר אין תשובה נכונה ולא מקבלים נקודות. על המסך יוצג כמה הצביעו לכל תשובה.' : 'יש לסמן בעיגול את התשובה הנכונה. לתשובה אפשר לצרף תמונה או סרטון (🖼) במקום טקסט או בנוסף לו.'}</div>
+  </div>`;
+}
+function setType(i, t) {
+  const q = editing.questions[i], wasTf = q.tf;
+  if (t === 'tf') { q.tf = true; q.poll = false; q.answers = ['נכון', 'לא נכון']; q.amedia = [null, null]; q.correct = 0; }
+  else {
+    if (wasTf) { q.answers = ['', '', '', '']; q.amedia = [null, null, null, null]; }
+    q.tf = false; q.poll = t === 'poll'; q.correct = q.poll ? -1 : Math.max(0, q.correct);
+  }
+  renderEditor();
+}
+function settingsHtml() {
+  const c = editing.settings;
+  const num = (k, label, min, max, hint = '') => `<label class="fld"><span>${label}</span><input type="number" min="${min}" max="${max}" value="${c[k]}" onchange="setNum('${k}',this.value,${min},${max})">${hint ? `<small>${hint}</small>` : ''}</label>`;
+  const sel = (k, label, opts) => `<label class="fld"><span>${label}</span><select onchange="setS('${k}',this.value,true)">${opts.map(([v, t]) => `<option value="${v}" ${c[k] === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+  const tog = (k, label) => `<label class="tog"><input type="checkbox" ${c[k] ? 'checked' : ''} onchange="setS('${k}',this.checked)"><span class="sw"></span>${label}</label>`;
+  return `<div class="sgrid">
+    <div class="scard">
+      <h3>מכניקת המשחק</h3>
+      <div class="frow">${num('qTime', 'זמן לשאלה (שניות)', 5, 300, 'לשאלות חדשות')}${num('maxPlayers', 'מספר משתתפים מקסימלי', 0, 10000, '0 = ללא הגבלה')}</div>
+      <button class="mb" onclick="applyTimeAll()">החלת הזמן על כל השאלות הקיימות</button>
+      <div class="frow" style="margin-top:12px">
+        ${sel('theme', 'ערכת עיצוב', [['classic', 'קלאסית (צבעוני)'], ['dj', '🎧 DJ — ללי שטרן']])}
+        ${sel('music', 'מוזיקת רקע', [['classic', 'מנגינת משחק קלאסית'], ['dj', 'ביט DJ'], ['file', 'קובץ מוזיקה שלי'], ['none', 'ללא מוזיקה']])}
+      </div>
+      ${c.theme === 'dj' ? iconPickerHtml(c) : ''}
+      ${c.music === 'file' ? `<div class="mrow">${c.musicFile ? `🎵 ${esc(c.musicFile.name || 'קובץ מוזיקה')} <button class="mb" onclick="setS('musicFile',null,true)">הסרה</button>` : `<button class="mb" onclick="$('afile').click()">בחירת קובץ מוזיקה מהמחשב</button>`}<input type="file" id="afile" accept="audio/*" hidden onchange="musicPicked(this)"></div>` : ''}
+      <div class="togs">${tog('showAnswersPhone', 'להראות למשתתפים בטלפון אם צדקו')}${tog('lateJoin', 'אפשר הצטרפות מאוחרת')}</div>
+    </div>
+    <div class="scard">
+      <h3>ניקוד ותוצאות</h3>
+      <div class="frow">
+        ${sel('scoring', 'שיטת ניקוד', [['speed', 'דיוק ומהירות'], ['fixed', 'ניקוד קבוע לתשובה נכונה'], ['accuracy', 'דיוק בלבד (נקודה לכל תשובה נכונה)']])}
+        ${sel('boardWhen', 'מתי להציג טבלת מובילים', [['each', 'אחרי כל שאלה'], ['everyN', 'כל מספר שאלות'], ['host', 'רק לפי החלטת המפעיל'], ['end', 'רק בסיום המשחק'], ['never', 'לא להציג']])}
+      </div>
+      <div class="frow">${c.boardWhen === 'everyN' ? num('boardEvery', 'כל כמה שאלות', 1, 100) : ''}${num('resultsSec', 'משך התוצאות בשניות', 3, 120, 'במעבר אוטומטי')}</div>
+      <div class="togs">
+        ${tog('showCorrect', 'הצג תשובה נכונה והתפלגות')}${tog('showFastest', 'הצג את המהירים שענו נכון')}
+        ${tog('showBoard', 'הצג טבלת מובילים מלאה בסיום')}${tog('showRankChange', 'הצג עלייה וירידה בדירוג')}
+        ${tog('showStreak', 'הצג רצף תשובות נכונות')}${tog('autoNext', 'עבור אוטומטית לשאלה הבאה')}
+      </div>
+    </div>
+    <div class="scard wide">
+      <h3>צפייה מרחוק</h3>
+      ${tog('remoteView', 'אפשר צפייה מרחוק בהפעלה')}
+      <div class="hint">יוצר קישור לצפייה בלבד (בלי הצבעה). במסך הפתיחה של המשחק יופיע ברקוד קטן וכפתור להעתקת הקישור, כך שמי שלא נמצא באולם יוכל לראות את השאלות והתוצאות.</div>
+    </div>
+  </div>`;
+}
+function iconPickerHtml(c) {
+  const ic = c.djIcons || DJ_DEFAULT_ICONS, slot = editing.iconSlot;
+  return `<div class="fld" style="margin-bottom:4px"><span>סמלים לתשובות (לחיצה על סמל מחליפה אותו)</span></div>
+    <div class="slots">${[0, 1, 2, 3].map(j => `<button class="slot ${slot === j ? 'on' : ''}" style="background:${THEMES.dj.colors[j]}" onclick="editing.iconSlot=${slot === j ? 'null' : j};renderEditor()">${svg(DJ_ICONS[ic[j]].svg)}<small>${DJ_ICONS[ic[j]].name}</small></button>`).join('')}</div>
+    ${slot != null ? `<div class="gallery">${Object.entries(DJ_ICONS).map(([k, v]) => `<button class="gi ${ic[slot] === k ? 'on' : ''}" onclick="pickIcon('${k}')">${svg(v.svg)}<small>${v.name}</small></button>`).join('')}</div>` : ''}`;
+}
+function pickIcon(k) {
+  const ic = [...(editing.settings.djIcons || DJ_DEFAULT_ICONS)];
+  ic[editing.iconSlot] = k; editing.settings.djIcons = ic; editing.iconSlot = null; renderEditor();
+}
+function setS(k, v, rerender) {
+  editing.settings[k] = v;
+  if (k === 'theme' && v === 'dj' && editing.settings.music === 'classic') editing.settings.music = 'dj';
+  if (k === 'theme' && v === 'classic' && editing.settings.music === 'dj') editing.settings.music = 'classic';
+  if (rerender) renderEditor();
+}
+function setNum(k, v, min, max) { v = Math.round(+v); if (isNaN(v)) v = DEFAULT_SETTINGS[k]; editing.settings[k] = Math.min(max, Math.max(min, v)); renderEditor(); }
+function applyTimeAll() {
+  const t = editing.settings.qTime;
+  if (!confirm(`לקבוע ${t} שניות לכל ${editing.questions.length} השאלות?`)) return;
+  editing.questions.forEach(q => { q.time = t; }); renderEditor();
+}
+async function musicPicked(inp) {
+  const f = inp.files[0]; inp.value = ''; if (!f) return;
+  setS('musicFile', { kind: 'audio', src: await Media.put(f), name: f.name }, true);
+}
+let mediaTarget = null;
+function pickMedia(i, j) { mediaTarget = [i, j]; $('mfile').click(); }
+async function mediaPicked(inp) {
+  const f = inp.files[0]; inp.value = ''; if (!f || !mediaTarget) return;
+  if (f.size > 200 * 1024 * 1024) return alert('הקובץ גדול מדי (מעל 200MB)');
+  const ref = { kind: f.type.startsWith('video') ? 'video' : 'image', src: await Media.put(f) };
+  setMedia(...mediaTarget, ref);
+}
+function linkMedia(i, j) {
+  const u = (prompt('הדביקי קישור לתמונה, לסרטון או ל-YouTube:') || '').trim(); if (!u) return;
+  const kind = ytId(u) ? 'youtube' : /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? 'video' : 'image';
+  setMedia(i, j, { kind, src: u });
+}
+function clearMedia(i, j) { setMedia(i, j, null); }
+function setMedia(i, j, ref) {
+  const q = editing.questions[i];
+  if (j < 0) q.media = ref;
+  else { q.amedia = q.amedia || q.answers.map(() => null); q.amedia[j] = ref; }
+  renderEditor();
+}
+function addQ() { editing.questions.push(blankQ()); renderEditor(); window.scrollTo(0, document.body.scrollHeight); }
+function delQ(i) { editing.questions.splice(i, 1); if (!editing.questions.length) editing.questions.push(blankQ()); renderEditor(); }
+function moveQ(i, d) {
+  const qs = editing.questions, j = i + d; if (j < 0 || j >= qs.length) return;
+  [qs[i], qs[j]] = [qs[j], qs[i]]; renderEditor();
+}
+function saveEdit(stay) {
+  const s = editing;
+  if (!String(s.title).trim()) { alert('צריך לתת שם למשחק'); return false; }
+  const bad = [];
+  s.questions.forEach((q, i) => {
+    if (!String(q.text).trim() && !q.media && q.answers.every((a, j) => q.tf || (!String(a).trim() && !(q.amedia || [])[j]))) return; // שאלה ריקה לגמרי — מדלגים
+    if (!normQs([q]).length) bad.push(i + 1);
+  });
+  if (bad.length) { alert('בשאלות האלה חסר משהו (טקסט, לפחות 2 תשובות, או שהתשובה הנכונה ריקה): ' + bad.join(', ')); return false; }
+  const clean = { id: s.id, title: s.title.trim(), questions: normQs(s.questions), settings: s.settings };
+  const sets = loadSets(), i = sets.findIndex(x => x.id === s.id);
+  if (i >= 0) sets[i] = clean; else sets.push(clean);
+  saveSets(sets);
+  if (!stay) { editing = null; renderHome(); }
+  return true;
+}
+
+/* ---- לשונית הפעלה: בדיקת טרום הפעלה ---- */
+const isBlankQ = q => !String(q.text).trim() && !q.media && q.answers.every((a, j) => q.tf || (!String(a).trim() && !(q.amedia || [])[j]));
+function preflight() {
+  const s = editing, qs = s.questions.map((q, i) => ({ q, i })).filter(x => !isBlankQ(x.q));
+  const noText = qs.filter(x => !String(x.q.text).trim()).map(x => x.i + 1);
+  const fewAns = qs.filter(x => (x.q.answers || []).filter((a, j) => String(a).trim() || (x.q.amedia || [])[j]).length < 2).map(x => x.i + 1);
+  const noCorrect = qs.filter(x => !x.q.poll && !(String(x.q.answers[x.q.correct] || '').trim() || (x.q.amedia || [])[x.q.correct])).map(x => x.i + 1);
+  const list = n => n.length ? `(שאלות ${n.join(', ')})` : '';
+  const c = getSettings(s);
+  return [
+    { ok: !!String(s.title).trim(), label: 'יש שם למשחק', fix: 'title' },
+    { ok: qs.length > 0, label: 'יש לפחות שאלה אחת', fix: 'q' },
+    { ok: !noText.length, label: 'לכל שאלה יש טקסט', detail: list(noText), first: noText[0] },
+    { ok: !fewAns.length, label: 'לכל שאלה יש לפחות 2 תשובות', detail: list(fewAns), first: fewAns[0] },
+    { ok: !noCorrect.length, label: 'לכל שאלה (שאינה סקר) יש תשובה נכונה מסומנת', detail: list(noCorrect), first: noCorrect[0] },
+    { ok: !(c.music === 'file' && !c.musicFile), warn: true, label: 'נבחר קובץ מוזיקה', detail: 'בהגדרות נבחר "קובץ מוזיקה שלי" אבל לא הועלה קובץ', fix: 's', hide: c.music !== 'file' },
+    { ok: ONLINE, warn: true, label: 'מחובר לאינטרנט (Firebase)', detail: 'מצב בדיקה: טלפונים לא יוכלו להתחבר, רק לשוניות במחשב הזה' }
+  ].filter(x => !x.hide);
+}
+function activateHtml() {
+  const checks = preflight(), blocking = checks.some(c => !c.ok && !c.warn);
+  const qs = normQs(editing.questions), c = getSettings(editing);
+  const secs = qs.reduce((t, q) => t + q.time + (c.autoNext ? c.resultsSec : 10), 0);
+  const scoring = { speed: 'דיוק ומהירות', fixed: 'ניקוד קבוע', accuracy: 'דיוק בלבד' }[c.scoring];
+  return `<div class="scard">
+    <h3>בדיקת טרום הפעלה</h3>
+    ${checks.map(x => `<div class="chk ${x.ok ? 'ok' : x.warn ? 'warn' : 'bad'}"><span class="ic">${x.ok ? '✔' : x.warn ? '!' : '✘'}</span>${x.label}${!x.ok && x.detail ? ` <small>${esc(x.detail)}</small>` : ''}</div>`).join('')}
+    <div class="summary">
+      <span>${qs.length} שאלות${qs.some(q => q.poll) ? ` (${qs.filter(q => q.poll).length} סקרים)` : ''}</span>
+      <span>בערך ${Math.max(1, Math.round(secs / 60))} דקות</span>
+      <span>ניקוד: ${scoring}</span>
+      <span>${c.maxPlayers > 0 ? `עד ${c.maxPlayers} משתתפים` : 'ללא הגבלת משתתפים'}</span>
+      ${c.remoteView ? '<span>👁 צפייה מרחוק פעילה</span>' : ''}
+    </div>
+    <div class="frow" style="margin-top:18px">
+      ${checks.some(x => !x.ok) ? '<button class="btn" style="box-shadow:none;border:1px solid var(--line)" onclick="fixNow()">תקן כעת</button>' : ''}
+      <button class="btn primary big" ${blocking ? 'disabled' : ''} onclick="activateNow()">▶ הפעל משחק</button>
+    </div>
+  </div>`;
+}
+function fixNow() {
+  const bad = preflight().find(x => !x.ok);
+  if (!bad) return;
+  if (bad.fix === 'title') { editing.tab = 'q'; renderEditor(); return document.querySelector('.title-in').focus(); }
+  if (bad.fix === 's') { editing.tab = 's'; return renderEditor(); }
+  editing.tab = 'q'; renderEditor();
+  if (bad.fix === 'q' && !editing.questions.length) return addQ();
+  const el = $('qc' + ((bad.first || 1) - 1));
+  if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2500); }
+}
+async function activateNow() {
+  if (!saveEdit(true)) return;
+  const id = editing.id; editing = null;
+  return startGame(id);
+}
+
+/* ---- לשונית סטטיסטיקות ---- */
+const RUNS_KEY = 'trivia_runs';
+function loadRuns() { try { return JSON.parse(localStorage.getItem(RUNS_KEY)) || []; } catch (e) { return []; } }
+const pctOf = p => p.of ? Math.round(p.correct / p.of * 100) : null;
+function runAvg(r) { const v = r.players.map(pctOf).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; }
+const fmtDate = t => new Date(t).toLocaleString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+function statsHtml() {
+  const runs = loadRuns().filter(r => r.setId === editing.id);
+  const totalP = runs.reduce((t, r) => t + r.players.length, 0);
+  const avgs = runs.map(runAvg).filter(x => x != null);
+  const avg = avgs.length ? Math.round(avgs.reduce((a, b) => a + b, 0) / avgs.length) + '%' : '—';
+  return `<div class="kpis">
+      <div class="kpi"><b>${runs.length}</b><span>מספר הפעלות</span></div>
+      <div class="kpi"><b>${totalP}</b><span>סה"כ משתתפים</span></div>
+      <div class="kpi"><b>${avg}</b><span>ציון ממוצע (אחוז תשובות נכונות)</span></div>
+    </div>
+    ${runs.length ? runs.map(runHtml).join('') : '<div class="empty">אין הפעלות קודמות עדיין. אחרי שתפעילי את המשחק, התוצאות יישמרו כאן.</div>'}`;
+}
+function runHtml(r) {
+  const open = editing.openRun === r.id, avg = runAvg(r), win = r.players[0];
+  const scoredQs = r.questions.filter(q => !q.poll);
+  const hardest = scoredQs.length ? scoredQs.reduce((m, q) => (q.correctN / Math.max(1, q.players)) < (m.correctN / Math.max(1, m.players)) ? q : m) : null;
+  return `<div class="run">
+    <div class="runhead" onclick="editing.openRun=${open ? 'null' : `'${r.id}'`};renderEditor()">
+      <span class="dt">${open ? '▾' : '◂'} ${fmtDate(r.date)}</span>
+      <span>👥 ${r.players.length} משתתפים</span>
+      <span>✔ ממוצע ${avg != null ? avg + '%' : '—'}</span>
+      ${win ? `<span>🏆 ${esc(win.name)} (${win.score})</span>` : ''}
+      ${!r.finished ? `<span class="tag">הופסק אחרי ${r.played} מתוך ${r.total} שאלות</span>` : ''}
+    </div>
+    ${open ? `<div class="runbody">
+      <h4>משתתפים</h4>
+      <table class="tbl"><tr><th>מקום</th><th>שם</th><th>נקודות</th><th>תשובות נכונות</th><th>ענה על</th></tr>
+        ${r.players.map((p, k) => `<tr><td>${k + 1}</td><td>${esc(p.name)}</td><td>${p.score}</td><td><span class="pct">${pctOf(p) ?? '—'}${pctOf(p) != null ? '%' : ''}</span> (${p.correct}/${p.of})</td><td>${p.answered}</td></tr>`).join('')}
+      </table>
+      <h4>שאלות</h4>
+      <table class="tbl"><tr><th>#</th><th>שאלה</th><th>ענו</th><th>ענו נכון</th><th>זמן ממוצע לתשובה נכונה</th></tr>
+        ${r.questions.map((q, k) => { const p = q.players ? Math.round(q.correctN / q.players * 100) : 0; return `<tr class="${q === hardest && !q.poll ? 'hard' : ''}"><td>${k + 1}</td><td>${q.poll ? '📊 ' : ''}${esc(q.text)}${q === hardest && !q.poll ? ' <small>(הכי קשה)</small>' : ''}</td><td>${q.answered}/${q.players}</td><td>${q.poll ? 'סקר: ' + q.answers.map((a, j) => `${esc(a || 'תשובה ' + (j + 1))} ${q.counts[j]}`).join(' · ') : `<span class="pct">${p}%</span><span class="pbar" style="width:${p * .6}px"></span>`}</td><td>${q.avgTime != null ? q.avgTime + ' שנ\'' : '—'}</td></tr>`; }).join('')}
+      </table>
+      <div class="frow" style="margin-top:14px">
+        <button class="mb" onclick="exportRun('${r.id}')">ייצוא לאקסל</button>
+        <button class="mb" onclick="delRun('${r.id}')">מחיקת ההפעלה</button>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+function exportRun(id) {
+  const r = loadRuns().find(x => x.id === id); if (!r) return;
+  const wb = XLSX.utils.book_new(); wb.Workbook = { Views: [{ RTL: true }, { RTL: true }] };
+  const ws1 = XLSX.utils.aoa_to_sheet([['מקום', 'שם', 'נקודות', 'תשובות נכונות', 'מתוך', 'אחוז', 'ענה על'],
+    ...r.players.map((p, k) => [k + 1, p.name, p.score, p.correct, p.of, pctOf(p), p.answered])]);
+  const ws2 = XLSX.utils.aoa_to_sheet([['#', 'שאלה', 'סוג', 'ענו', 'משתתפים', 'ענו נכון', 'אחוז נכון', 'זמן ממוצע (שניות)'],
+    ...r.questions.map((q, k) => [k + 1, q.text, q.poll ? 'סקר' : 'שאלה', q.answered, q.players, q.poll ? '' : q.correctN, q.poll || !q.players ? '' : Math.round(q.correctN / q.players * 100), q.avgTime ?? ''])]);
+  ws1['!cols'] = [{ wch: 6 }, { wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 8 }];
+  ws2['!cols'] = [{ wch: 4 }, { wch: 50 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 16 }];
+  XLSX.utils.book_append_sheet(wb, ws1, 'משתתפים');
+  XLSX.utils.book_append_sheet(wb, ws2, 'שאלות');
+  const d = new Date(r.date);
+  XLSX.writeFile(wb, `${r.title} - ${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}.xlsx`);
+}
+function delRun(id) {
+  if (!confirm('למחוק את ההפעלה הזאת מהסטטיסטיקות?')) return;
+  localStorage.setItem(RUNS_KEY, JSON.stringify(loadRuns().filter(r => r.id !== id)));
+  renderEditor();
+}
+
+/* ====================== אקסל ====================== */
+const XL_HEAD = ['שאלה', 'תשובה 1', 'תשובה 2', 'תשובה 3', 'תשובה 4', 'מספר התשובה הנכונה (או: סקר)', 'זמן בשניות'];
+function writeXlsx(rows, name) {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 50 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 20 }, { wch: 12 }];
+  const wb = XLSX.utils.book_new(); wb.Workbook = { Views: [{ RTL: true }] };
+  XLSX.utils.book_append_sheet(wb, ws, 'שאלות');
+  XLSX.writeFile(wb, name);
+}
+function downloadTemplate() {
+  writeXlsx([XL_HEAD,
+    ['מהי עיר הבירה של צרפת?', 'לונדון', 'פריז', 'רומא', 'ברלין', 2, 20],
+    ['השמש היא כוכב', 'נכון', 'לא נכון', '', '', 1, 15],
+    ['איזה חג אתם הכי אוהבים?', 'פסח', 'סוכות', 'חנוכה', 'פורים', 'סקר', 20]], 'תבנית-טריוויה.xlsx');
+}
+function exportSet(id) {
+  const s = loadSets().find(x => x.id === id); if (!s) return;
+  writeXlsx([XL_HEAD, ...normQs(s.questions).map(q => [q.text, ...[0, 1, 2, 3].map(j => q.answers[j] || ''), q.poll ? 'סקר' : q.correct + 1, q.time])], (s.title || 'טריוויה') + '.xlsx');
+}
+function importExcel(inp) {
+  const f = inp.files[0]; inp.value = ''; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+      const qs = []; let skipped = 0;
+      rows.forEach((row, ri) => {
+        const text = String(row[0] ?? '').trim();
+        if (!text) return;
+        if (ri === 0 && text.includes('שאלה')) return;
+        const answers = [1, 2, 3, 4].map(k => String(row[k] ?? '').trim());
+        const filled = answers.filter(Boolean);
+        const isTf = filled.length === 2 && filled[0] === 'נכון' && filled[1] === 'לא נכון';
+        let c = String(row[5] ?? '').trim(), correct = parseInt(c, 10) - 1;
+        const isPoll = c === 'סקר';
+        if (isPoll) correct = -1;
+        else if (isNaN(correct)) correct = answers.findIndex(a => a && a === c);
+        const q = { text, answers: isTf ? ['נכון', 'לא נכון'] : answers, correct, time: parseInt(row[6], 10) || 20, tf: isTf && !isPoll, poll: isPoll };
+        if (normQs([q]).length) qs.push(q); else skipped++;
+      });
+      if (!qs.length) return alert('לא נמצאו שאלות תקינות בקובץ. כדאי להוריד את התבנית ולמלא לפיה.');
+      const sets = loadSets();
+      sets.push({ id: rid(), title: f.name.replace(/\.[^.]+$/, ''), questions: normQs(qs) });
+      saveSets(sets); renderHome();
+      alert(`יובאו ${qs.length} שאלות` + (skipped ? `\n${skipped} שורות דולגו כי חסר בהן משהו` : ''));
+    } catch (err) { alert('לא הצלחתי לקרוא את הקובץ: ' + err.message); }
+  };
+  r.readAsArrayBuffer(f);
+}
+
+/* ====================== מסך המנחה (המחשב) ====================== */
+let H = null;
+const gp = sub => `games/${H.code}/${sub}`;
+
+/* ---- מוזיקת רקע ---- */
+const Music = {
+  on: true, timer: null, audio: null, cfg: null, step: 0,
+  CHORDS: [[220, 261.63, 329.63, 110], [174.61, 220, 261.63, 87.31], [196, 261.63, 329.63, 130.81], [196, 246.94, 293.66, 98]],
+  playing() { return !!(this.timer || (this.audio && !this.audio.paused)); },
+  async play(cfg) {
+    if (cfg) this.cfg = cfg;
+    const c = this.cfg;
+    if (!this.on || !c || c.music === 'none' || this.playing()) return;
+    if (c.music === 'file') {
+      if (!c.musicFile) return;
+      if (!this.audio) { this.audio = new Audio(await Media.url(c.musicFile.src)); this.audio.loop = true; this.audio.volume = .35; }
+      this.audio.play().catch(() => {});
+      return;
+    }
+    this.timer = setInterval(() => this.tick(), c.music === 'dj' ? 125 : 214);
+  },
+  tick() {
+    if (this.cfg.music === 'dj') return this.beat();
+    const ch = this.CHORDS[Math.floor(this.step / 8) % 4], s = this.step % 8;
+    beep(ch[[0, 1, 2, 1, 0, 1, 2, 1][s]] * 2, .12, 'triangle', .035);
+    if (s === 0 || s === 4) beep(ch[3], .35, 'sine', .08);
+    this.step++;
+  },
+  // ביט 4/4: בס-תוף, היי-האט, בס ומנגינה קצרה
+  beat() {
+    const s = this.step % 16, bar = Math.floor(this.step / 16) % 4;
+    const root = [110, 87.31, 130.81, 98][bar];
+    if (s % 4 === 0) this.kick();
+    if (s % 4 === 2) beep(9000, .03, 'square', .012);
+    if (s === 4 || s === 12) beep(220, .08, 'triangle', .05);
+    if (s % 2 === 0) beep(root * (s % 8 === 6 ? 2 : 1), .12, 'sawtooth', .025);
+    if (s === 0 || s === 3 || s === 6 || s === 10) beep(root * [4, 5, 6, 4.5][bar] / 1, .1, 'triangle', .03);
+    this.step++;
+  },
+  kick() {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+      o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t + .15);
+      g.gain.setValueAtTime(.35, t); g.gain.exponentialRampToValueAtTime(.001, t + .25);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + .26);
+    } catch (e) {}
+  },
+  pause() { clearInterval(this.timer); this.timer = null; if (this.audio) this.audio.pause(); },
+  stop() { this.pause(); this.audio = null; this.step = 0; },
+  toggle() {
+    this.on = !this.on;
+    if (this.on && H && (H.state === 'lobby' || H.state === 'question')) this.play(); else if (!this.on) this.pause();
+    const b = $('mbtn'); if (b) b.textContent = this.on ? '🔊' : '🔇';
+  }
+};
+
+/* ---- מעבר אוטומטי ---- */
+function clearAuto() { if (H) { clearInterval(H.auto); H.auto = null; } const l = $('autolbl'); if (l) l.textContent = ''; }
+function scheduleAuto() {
+  clearAuto();
+  if (!H.cfg.autoNext) return;
+  const at = Date.now() + H.cfg.resultsSec * 1000;
+  H.auto = setInterval(() => {
+    const rem = Math.ceil((at - Date.now()) / 1000), l = $('autolbl');
+    if (rem <= 0) { clearAuto(); const b = $('main'); if (b) b.click(); }
+    else if (l) l.textContent = `ממשיכים אוטומטית בעוד ${rem}…`;
+  }, 250);
+}
+
+async function startGame(id) {
+  const set = loadSets().find(s => s.id === id);
+  const qs = normQs(set && set.questions);
+  if (!qs.length) return alert('אין במשחק הזה שאלות תקינות');
+  const cfg = getSettings(set);
+  setTheme(cfg.theme, cfg.djIcons);
+  document.body.classList.remove('admin');
+  let code;
+  for (let k = 0; k < 25; k++) {
+    code = String(1000 + Math.floor(Math.random() * 9000));
+    const ex = await DB.get(`games/${code}/meta`);
+    if (!ex || DB.now() - (ex.created || 0) > 6 * 3600e3) break;
+  }
+  await DB.remove(`games/${code}`);
+  H = { code, title: set.title, qs, cfg, qi: -1, players: {}, answers: {}, state: 'lobby', streak: {}, delta: {}, setId: id, runId: rid(), startedAt: Date.now(), qStats: [], pstat: {} };
+  await DB.set(gp('meta'), {
+    state: 'lobby', title: set.title, total: qs.length, created: DB.now(), remoteView: !!cfg.remoteView,
+    cfg: { maxPlayers: cfg.maxPlayers, lateJoin: cfg.lateJoin, feedback: cfg.showAnswersPhone, streak: cfg.showStreak, scoring: cfg.scoring, theme: cfg.theme, icons: cfg.djIcons }
+  });
+  H.unsubP = DB.on(gp('players'), v => { H.players = v || {}; onPlayers(); });
+  window.onkeydown = e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowLeft') { e.preventDefault(); const b = $('main'); if (b && !b.disabled) b.click(); }
+  };
+  renderLobby();
+  Music.play(cfg);
+}
+
+const playerCount = () => Object.keys(H.players).length;
+const sortedPlayers = () => Object.entries(H.players).sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+
+function stageTop(right) {
+  return `<div class="stage-top">
+    <span style="display:flex;gap:10px;align-items:center">${djLogo()}<span class="pill">${esc(H.title)}</span></span>
+    ${right || ''}
+    <span>
+      ${H.cfg.music !== 'none' ? `<button class="btn ghost" id="mbtn" title="מוזיקה" onclick="Music.toggle()">${Music.on ? '🔊' : '🔇'}</button>` : ''}
+      <button class="btn ghost" onclick="toggleFS()">מסך מלא</button>
+      <button class="btn ghost" onclick="endHost()">יציאה</button>
+    </span>
+  </div>`;
+}
+function toggleFS() { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
+function endHost() {
+  if (H && H.state !== 'end' && !confirm('לצאת מהמשחק?')) return;
+  if (H) {
+    clearInterval(H.timer); clearAuto(); H.unsubP && H.unsubP(); H.unsubA && H.unsubA();
+    if (H.state !== 'end') DB.remove(gp('')); // במשחק שהסתיים משאירים את התוצאות בטלפונים
+  }
+  Music.stop();
+  document.querySelectorAll('.confetti').forEach(d => d.remove());
+  H = null; renderHome();
+}
+
+function renderLobby() {
+  const url = joinBase() + '?join=' + H.code, wurl = joinBase() + '?watch=' + H.code;
+  const max = H.cfg.maxPlayers > 0 ? ` / ${H.cfg.maxPlayers}` : '';
+  app.innerHTML = `<div class="stage">
+    ${stageTop()}
+    <div class="lobby">
+      <div class="joinbox">
+        ${djLogo()}
+        <div class="lbl">סורקים את הקוד עם המצלמה</div>
+        <div id="qr"></div>
+        <div class="lbl">או נכנסים לאתר ומקלידים את הקוד</div>
+        <div class="code">${H.code}</div>
+        <div class="url">${esc(joinBase())}?play</div>
+        ${!ONLINE ? `<p><a href="${esc(url)}" target="_blank" style="color:var(--bg2);font-weight:700">פתיחת חלון משתתף לבדיקה ↗</a></p>` : ''}
+        ${H.cfg.remoteView ? `<div class="watchbox"><div id="wqr"></div><div><b>👁 צפייה מרחוק</b><br><span class="lbl">בלי הצבעה</span><br>
+          <button class="mb" onclick="navigator.clipboard.writeText('${esc(wurl)}').then(()=>this.textContent='הועתק ✔')">העתקת קישור</button></div></div>` : ''}
+      </div>
+      <div class="lobby-r">
+        ${slogan('big')}
+        <h2>משתתפים: <span id="pcount">0</span>${max}</h2>
+        <div class="chips" id="chips"></div>
+        <div class="hint" style="color:#fff;opacity:.7;margin-top:10px">לחיצה על שם מוציאה את המשתתף מהמשחק</div>
+      </div>
+    </div>
+    <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="nextQ()" disabled>התחלת המשחק ▶</button></div>
+  </div>`;
+  try { new QRCode($('qr'), { text: url, width: 230, height: 230 }); } catch (e) {}
+  if (H.cfg.remoteView) try { new QRCode($('wqr'), { text: wurl, width: 90, height: 90 }); } catch (e) {}
+  onPlayers();
+}
+function kick(pid) { const p = H.players[pid]; if (p && confirm(`להוציא את ${p.name}?`)) DB.remove(gp('players/' + pid)); }
+
+function onPlayers() {
+  if (!H) return;
+  if (H.state === 'lobby' && $('chips')) {
+    const n = playerCount();
+    $('pcount').textContent = n;
+    $('main').disabled = n === 0;
+    const have = new Set([...$('chips').children].map(c => c.dataset.pid));
+    const now = new Set(Object.keys(H.players));
+    [...$('chips').children].forEach(c => { if (!now.has(c.dataset.pid)) c.remove(); });
+    for (const pid of now) if (!have.has(pid)) {
+      const c = document.createElement('span'); c.className = 'chip'; c.dataset.pid = pid;
+      c.textContent = H.players[pid].name; c.onclick = () => kick(pid);
+      $('chips').appendChild(c); beep(520, .08, 'triangle', .1);
+    }
+  }
+  if (H.state === 'question') updCount();
+}
+
+async function nextQ() {
+  clearAuto();
+  H.qi++;
+  if (H.qi >= H.qs.length) return finish();
+  const q = H.qs[H.qi];
+  H.state = 'question'; H.answers = {}; H.start = DB.now(); H.lastSec = null;
+  await DB.update(gp('meta'), {
+    state: 'question', i: H.qi, reveal: null, board: null,
+    q: { text: q.text, answers: q.answers, tf: q.tf, poll: q.poll, media: !!q.media, pics: q.answers.map((a, j) => !!(q.amedia && q.amedia[j])), dur: q.time, start: H.start }
+  });
+  H.unsubA && H.unsubA();
+  H.unsubA = DB.on(gp('answers/' + H.qi), v => { H.answers = v || {}; updCount(); });
+  renderQuestion();
+  // סרטון בשאלה — המוזיקה נעצרת כדי שישמעו אותו
+  if (q.media && q.media.kind !== 'image') Music.pause(); else Music.play();
+  clearInterval(H.timer);
+  H.timer = setInterval(tick, 200);
+}
+
+function answersHtml(q, revealIdx) {
+  return `<div class="answers">${q.answers.map((a, j) => `
+    <div class="ans ${revealIdx != null && j !== revealIdx ? 'dim' : ''}" style="background:${ansColor(q, j)}">
+      <span class="shape">${q.tf ? (j ? '✘' : '✔') : SHAPES[j]}</span>
+      ${q.amedia && q.amedia[j] ? mediaHtml(q.amedia[j], a ? 'am' : 'am big', { muted: true }) : ''}
+      <span>${esc(a)}${!q.amedia && q.pics && q.pics[j] ? ' 🖼' : ''}</span>
+      ${revealIdx === j ? '<span class="ck">✔</span>' : ''}
+    </div>`).join('')}</div>`;
+}
+
+function renderQuestion() {
+  const q = H.qs[H.qi];
+  app.innerHTML = `<div class="stage">
+    ${stageTop(`<span class="pill">שאלה ${H.qi + 1} מתוך ${H.qs.length}</span>`)}
+    <div class="qtext">${esc(q.text)}</div>
+    <div class="tbar" id="tbar"><div id="tfill"></div></div>
+    <div class="qmid">
+      <div class="timer" id="timer">${q.time}</div>
+      <div class="qmedia">${q.poll ? '<span class="polltag" style="font-size:22px">📊 סקר — אין תשובה נכונה</span>' : ''}${mediaHtml(q.media, 'qm', { auto: true })}</div>
+      <div class="counter"><b id="acount">0</b>${q.poll ? 'הצביעו' : 'ענו'}</div>
+    </div>
+    ${answersHtml(q)}
+    <div class="stage-bottom"><span></span>${slogan()}<button class="btn ghost" id="main" onclick="reveal()">${q.poll ? 'לתוצאות הסקר ⏭' : 'דילוג לתשובה ⏭'}</button></div>
+  </div>`;
+  hydrateMedia(app);
+  updCount();
+}
+
+function answeredCount() { return Object.keys(H.answers).filter(pid => H.players[pid]).length; }
+function updCount() {
+  if (!H || H.state !== 'question') return;
+  if ($('acount')) $('acount').textContent = answeredCount() + ' / ' + playerCount();
+  if (playerCount() > 0 && answeredCount() >= playerCount()) reveal();
+}
+
+function tick() {
+  if (!H || H.state !== 'question') return;
+  const q = H.qs[H.qi];
+  const rem = Math.max(0, Math.ceil((H.start + q.time * 1000 - DB.now()) / 1000));
+  const t = $('timer');
+  if (t) { t.textContent = rem; t.classList.toggle('low', rem <= 5); }
+  const frac = Math.max(0, (H.start + q.time * 1000 - DB.now()) / (q.time * 1000));
+  if ($('tfill')) { $('tfill').style.width = (frac * 100) + '%'; $('tbar').classList.toggle('low', rem <= 5); }
+  if (rem !== H.lastSec) { H.lastSec = rem; if (rem <= 5 && rem > 0) beep(440, .1, 'square', .08); }
+  if (rem <= 0) reveal();
+}
+
+function points(el, time) {
+  const s = H.cfg.scoring;
+  if (s === 'fixed') return 1000;
+  if (s === 'accuracy') return 1;
+  return Math.round(500 + 500 * Math.max(0, 1 - el / time));
+}
+
+async function reveal() {
+  if (!H || H.state !== 'question') return;
+  H.state = 'reveal';
+  clearInterval(H.timer);
+  Music.pause();
+  H.unsubA && H.unsubA(); H.unsubA = null;
+  const q = H.qs[H.qi];
+  const ans = (await DB.get(gp('answers/' + H.qi))) || {};
+  const prevRank = {}; sortedPlayers().forEach(([pid], k) => { prevRank[pid] = k + 1; });
+  const counts = q.answers.map(() => 0);
+  const res = {}, fast = [];
+  for (const pid in H.players) {
+    const a = ans[pid]; let pts = 0, ok = false, el = null;
+    if (a && a.a >= 0 && a.a < counts.length) {
+      counts[a.a]++;
+      if (!q.poll && a.a === q.correct) {
+        ok = true;
+        el = Math.max(0, (a.t - H.start) / 1000);
+        pts = points(el, q.time);
+        fast.push({ name: H.players[pid].name, el: Math.round(el * 10) / 10 });
+      }
+    }
+    if (!q.poll) H.streak[pid] = ok ? (H.streak[pid] || 0) + 1 : 0;
+    H.players[pid].score = (H.players[pid].score || 0) + pts;
+    res[pid] = { i: H.qi, ok, pts, answered: !!a, poll: q.poll, score: H.players[pid].score, streak: H.streak[pid] || 0 };
+  }
+  fast.sort((x, y) => x.el - y.el);
+  H.fast = fast.slice(0, 3);
+  for (const pid in res) {
+    const st = H.pstat[pid] = H.pstat[pid] || { correct: 0, answered: 0 };
+    if (!q.poll) { st.answered += res[pid].answered ? 1 : 0; st.correct += res[pid].ok ? 1 : 0; }
+  }
+  H.qStats[H.qi] = {
+    text: q.text, poll: q.poll, answers: q.answers, counts, players: playerCount(),
+    answered: counts.reduce((x, y) => x + y, 0), correctN: fast.length,
+    avgTime: fast.length ? Math.round(fast.reduce((t, f) => t + f.el, 0) / fast.length * 10) / 10 : null
+  };
+  const upd = {};
+  sortedPlayers().forEach(([pid], k) => {
+    res[pid].rank = k + 1; res[pid].of = playerCount();
+    H.delta[pid] = prevRank[pid] && H.qi > 0 ? prevRank[pid] - (k + 1) : 0;
+    upd['players/' + pid + '/score'] = res[pid].score;
+    upd['results/' + pid] = res[pid];
+  });
+  const showC = H.cfg.showCorrect || q.poll;
+  upd['meta/state'] = 'reveal';
+  upd['meta/reveal'] = { i: H.qi, correct: showC && !q.poll ? q.correct : -1, counts: showC ? counts : null, answered: counts.reduce((x, y) => x + y, 0), fast: H.cfg.showFastest && !q.poll ? H.fast : null };
+  await DB.update(gp(''), upd);
+  saveRun(false);
+  ding();
+  renderReveal(counts);
+  scheduleAuto();
+}
+
+// מה בא אחרי מסך התשובה, לפי ההגדרות
+function afterReveal() {
+  const q = H.qs[H.qi], c = H.cfg;
+  if (H.qi >= H.qs.length - 1) return { fn: 'finish()', label: 'לתוצאות הסופיות 🏆' };
+  if (!q.poll && (c.boardWhen === 'each' || (c.boardWhen === 'everyN' && (H.qi + 1) % Math.max(1, c.boardEvery) === 0)))
+    return { fn: 'showBoard()', label: 'טבלת המובילים ▶' };
+  return { fn: 'nextQ()', label: 'השאלה הבאה ▶' };
+}
+
+function renderReveal(counts) {
+  const q = H.qs[H.qi], max = Math.max(1, ...counts), nx = afterReveal();
+  const showC = H.cfg.showCorrect || q.poll;
+  const answered = counts.reduce((x, y) => x + y, 0);
+  app.innerHTML = `<div class="stage">
+    ${stageTop(`<span class="pill">שאלה ${H.qi + 1} מתוך ${H.qs.length}</span>`)}
+    <div class="qtext">${q.poll ? '📊 ' : ''}${esc(q.text)}</div>
+    ${showC ? `
+    <div class="bars">${counts.map((c, j) => `
+      <div class="bar ${!q.poll && j !== q.correct ? 'dim' : ''}">
+        <div class="n">${c}</div>
+        <div class="b" style="height:${Math.max(4, c / max * 150)}px;background:${ansColor(q, j)}"></div>
+      </div>`).join('')}</div>
+    <div style="height:18px"></div>
+    ${answersHtml(q, q.poll ? null : q.correct)}` : `
+    <div class="board" style="text-align:center"><h2>⏰ הזמן נגמר!</h2><div style="font-size:28px">${answered} מתוך ${playerCount()} ענו</div></div>`}
+    ${H.cfg.showFastest && !q.poll && H.fast.length ? `<div class="fastest">⚡ הכי מהירים: ${H.fast.map(f => `<span>${esc(f.name)} <small>${f.el} שנ'</small></span>`).join('')}</div>` : ''}
+    <div class="stage-bottom"><span class="autolbl" id="autolbl"></span>${slogan()}
+      <span>
+        ${H.cfg.boardWhen === 'host' && !q.poll && nx.fn === 'nextQ()' ? '<button class="btn ghost big" onclick="showBoard()">טבלת מובילים</button>' : ''}
+        <button class="btn primary big" id="main" onclick="${nx.fn}">${nx.label}</button>
+      </span>
+    </div>
+  </div>`;
+  hydrateMedia(app);
+}
+
+function boardRows(list, from = 0) {
+  const c = H.cfg;
+  return list.map(([pid, p], k) => {
+    const d = H.delta[pid] || 0, st = H.streak[pid] || 0;
+    return `<div class="brow" style="animation-delay:${k * .08}s">
+      <span><span class="r">${from + k + 1}</span>${esc(p.name)}</span>
+      <span class="side">
+        ${c.showStreak && st >= 2 ? `<span class="streak">🔥${st}</span>` : ''}
+        ${c.showRankChange && d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</span>` : ''}
+        <span>${p.score || 0}</span>
+      </span>
+    </div>`;
+  }).join('');
+}
+const boardData = list => list.map(([pid, p]) => ({ name: p.name, score: p.score || 0, d: H.delta[pid] || 0, st: H.streak[pid] || 0 }));
+
+async function showBoard() {
+  clearAuto();
+  H.state = 'board';
+  const top = sortedPlayers().slice(0, 5);
+  await DB.update(gp('meta'), { state: 'board', board: boardData(top) });
+  app.innerHTML = `<div class="stage">
+    ${stageTop(`<span class="pill">אחרי ${H.qi + 1} מתוך ${H.qs.length} שאלות</span>`)}
+    <div class="board">
+      <h2>טבלת המובילים</h2>
+      ${boardRows(top)}
+    </div>
+    <div class="stage-bottom"><span class="autolbl" id="autolbl"></span>${slogan()}<button class="btn primary big" id="main" onclick="nextQ()">השאלה הבאה ▶</button></div>
+  </div>`;
+  scheduleAuto();
+}
+
+function saveRun(finished) {
+  const scored = H.qStats.filter(x => x && !x.poll).length;
+  const rec = {
+    id: H.runId, setId: H.setId, title: H.title, date: H.startedAt, finished, total: H.qs.length, played: H.qStats.filter(Boolean).length,
+    players: sortedPlayers().map(([pid, p]) => ({ name: p.name, score: p.score || 0, correct: (H.pstat[pid] || {}).correct || 0, answered: (H.pstat[pid] || {}).answered || 0, of: scored })),
+    questions: H.qStats.filter(Boolean)
+  };
+  const runs = loadRuns(), i = runs.findIndex(r => r.id === rec.id);
+  if (i >= 0) runs[i] = rec; else runs.unshift(rec);
+  try { localStorage.setItem(RUNS_KEY, JSON.stringify(runs.slice(0, 300))); } catch (e) {}
+}
+
+async function finish() {
+  clearAuto();
+  if (H.qStats.length) saveRun(true);
+  H.state = 'end';
+  clearInterval(H.timer);
+  Music.stop();
+  const all = sortedPlayers(), show = H.cfg.boardWhen !== 'never';
+  await DB.update(gp('meta'), { state: 'end', board: show ? boardData(all.slice(0, 10)) : null });
+  const pod = (k, h, color) => all[k] ? `<div class="pod"><div class="nm">${esc(all[k][1].name)}</div><div class="sc">${all[k][1].score || 0} נקודות</div><div class="blk" style="height:${h}px;background:${color}">${k + 1}</div></div>` : '';
+  const rest = H.cfg.showBoard && all.length > 3 ? `<div class="biglist">${all.slice(3).map(([, p], k) => `<div><span><b>${k + 4}</b> ${esc(p.name)}</span><span>${p.score || 0}</span></div>`).join('')}</div>` : '';
+  app.innerHTML = `<div class="stage">
+    ${stageTop()}
+    ${show ? `
+    <div class="board" style="text-align:center"><h2>🏆 המנצחים 🏆</h2></div>
+    <div class="podium">${pod(1, 200, '#c0c0c0')}${pod(0, 280, '#ffcc00')}${pod(2, 140, '#cd7f32')}</div>
+    ${rest}` : `<div class="board" style="text-align:center;flex:1"><h2>🎉 המשחק נגמר!</h2><div style="font-size:26px">תודה לכל המשתתפים</div></div>`}
+    <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="endHost()">סיום וחזרה למסך הראשי</button></div>
+  </div>`;
+  confetti();
+  [523, 659, 784, 1046].forEach((f, k) => setTimeout(() => beep(f, .25, 'triangle', .15), k * 160));
+}
+
+function confetti() {
+  const cols = ['#ffcc00', '#e21b3c', '#1368ce', '#26890c', '#fff'];
+  for (let k = 0; k < 120; k++) {
+    const d = document.createElement('div'); d.className = 'confetti';
+    d.style.left = Math.random() * 100 + 'vw';
+    d.style.background = cols[k % cols.length];
+    d.style.animationDuration = (2.5 + Math.random() * 2.5) + 's';
+    d.style.animationDelay = Math.random() * 1.5 + 's';
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 7000);
+  }
+}
+
+/* ====================== מסך המשתתף (הטלפון) ====================== */
+const P = { code: '', pid: '', name: '', meta: null, res: null, answeredI: -1, unsub: [], timer: null };
+const SESS_KEY = 'trivia_player';
+const THEME_CHECKED = {};
+
+function playerJoinScreen(code, err) {
+  P.unsub.forEach(u => u()); P.unsub = []; clearInterval(P.timer);
+  let last = ''; try { last = (JSON.parse(PSTORE.getItem(SESS_KEY)) || {}).name || ''; } catch (e) {}
+  app.innerHTML = `<div class="pwrap">
+    <div class="logo">🎯 טריוויה</div>${djLogo()}${slogan()}
+    <input id="pcode" inputmode="numeric" maxlength="4" placeholder="קוד המשחק" value="${esc(code || '')}">
+    <input id="pname" maxlength="16" placeholder="השם שלך" value="${esc(last)}">
+    <button class="btn primary big" onclick="pJoin()">כניסה למשחק</button>
+    <div class="perr" id="perr">${esc(err || '')}</div>
+  </div>`;
+  $(code ? 'pname' : 'pcode').focus();
+  // אם כבר יודעים את קוד המשחק — מחילים את ערכת העיצוב שלו
+  if (code && !THEME_CHECKED[code]) {
+    THEME_CHECKED[code] = 1;
+    DB.get(`games/${code}/meta`).then(m => { if (m && m.cfg && m.cfg.theme && m.cfg.theme !== THEME) { setTheme(m.cfg.theme, m.cfg.icons); const n = $('pname') && $('pname').value; playerJoinScreen(code, err); if (n) $('pname').value = n; } });
+  }
+  $('pname').onkeydown = e => { if (e.key === 'Enter') pJoin(); };
+}
+
+async function pJoin(auto) {
+  const code = auto ? auto.code : $('pcode').value.trim();
+  const name = auto ? auto.name : $('pname').value.trim();
+  const err = m => auto ? playerJoinScreen(code) : ($('perr').textContent = m);
+  if (!/^\d{4}$/.test(code)) return err('קוד המשחק הוא 4 ספרות');
+  if (!name) return err('צריך לכתוב שם');
+  const meta = await DB.get(`games/${code}/meta`);
+  if (!meta) return err('לא נמצא משחק עם הקוד הזה');
+  if (meta.state === 'end') return err('המשחק הזה כבר הסתיים');
+  let sess = null; try { sess = JSON.parse(PSTORE.getItem(SESS_KEY)); } catch (e) {}
+  const same = !!(sess && sess.code === code && sess.created === meta.created && sess.pid);
+  const pid = same ? sess.pid : rid();
+  const existing = await DB.get(`games/${code}/players/${pid}`);
+  const cfg = meta.cfg || {};
+  if (!existing) {
+    if (cfg.lateJoin === false && meta.state !== 'lobby') return err('המשחק כבר התחיל, אי אפשר להצטרף באמצע');
+    if (cfg.maxPlayers > 0 && Object.keys((await DB.get(`games/${code}/players`)) || {}).length >= cfg.maxPlayers) return err('המשחק מלא');
+  }
+  await DB.update(`games/${code}/players/${pid}`, existing ? { name } : { name, score: 0, joined: DB.now() });
+  PSTORE.setItem(SESS_KEY, JSON.stringify({ code, pid, name, created: meta.created, answeredI: same ? (sess.answeredI ?? -1) : -1 }));
+  Object.assign(P, { code, pid, name, meta: null, res: null, answeredI: same ? (sess.answeredI ?? -1) : -1 });
+  P.unsub.push(DB.on(`games/${code}/meta`, v => { P.meta = v; renderPlayer(); }));
+  P.unsub.push(DB.on(`games/${code}/results/${pid}`, v => { P.res = v; renderPlayer(); }));
+  P.unsub.push(DB.on(`games/${code}/players/${pid}`, v => { if (v === null && P.meta && P.meta.state !== 'end') playerJoinScreen(code, 'הוצאת מהמשחק'); }));
+}
+
+function pTop() {
+  const score = P.res ? P.res.score : 0;
+  return `<div class="ptop"><span>${esc(P.name)}</span><span>${score} נק'</span></div>`;
+}
+
+function renderPlayer() {
+  clearInterval(P.timer);
+  const m = P.meta;
+  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons);
+  if (!m) { PSTORE.removeItem(SESS_KEY); return playerJoinScreen('', 'המשחק נסגר'); }
+  let body = '';
+  if (m.state === 'lobby') {
+    body = `${djLogo()}${slogan()}<div class="pbig">✔ נכנסת למשחק!</div><div class="psub">רואים את השם שלך על המסך?<br>מחכים שהמשחק יתחיל…</div><div class="spinner"></div>`;
+  } else if (m.state === 'question') {
+    const q = m.q;
+    if (P.answeredI === m.i) {
+      body = `<div class="ptop"><span>שאלה ${m.i + 1}/${m.total}</span><span class="ptimer" id="ptimer">${Math.max(0, Math.ceil((q.start + q.dur * 1000 - DB.now()) / 1000))}</span></div>
+        <div class="tbar" id="ptbar"><div id="ptfill"></div></div>
+        <div class="pbig">${q.poll ? 'ההצבעה נשלחה!' : 'התשובה נשלחה!'}</div><div class="psub">מחכים לשאר המשתתפים…</div><div class="spinner"></div>`;
+      P.timer = setInterval(pTick, 250);
+      setTimeout(pTick, 0);
+    } else {
+      body = `<div class="ptop"><span>שאלה ${m.i + 1}/${m.total}</span><span class="ptimer" id="ptimer">${Math.max(0, Math.ceil((q.start + q.dur * 1000 - DB.now()) / 1000))}</span></div>
+        <div class="tbar" id="ptbar"><div id="ptfill"></div></div>
+        <div class="pq">${q.poll ? '<span class="polltag">📊 סקר</span><br>' : ''}${esc(q.text)}${q.media || (q.pics || []).some(Boolean) ? '<br><b>👀 הסתכלו על המסך</b>' : ''}</div>
+        <div class="pgrid ${q.tf ? 'two' : ''}">${q.answers.map((a, j) => `
+          <button class="pbtn" style="background:${ansColor(q, j)}" onclick="pAnswer(${j})">
+            <span class="shape">${q.tf ? (j ? '✘' : '✔') : SHAPES[j]}</span><span>${esc(a)}${(q.pics || [])[j] ? ' 🖼' : ''}</span>
+          </button>`).join('')}</div>`;
+      P.timer = setInterval(pTick, 250);
+      setTimeout(pTick, 0);
+    }
+  } else if (m.state === 'reveal' || m.state === 'board') {
+    const r = P.res && P.res.i === m.i ? P.res : null;
+    const cfg = m.cfg || {}, fb = cfg.feedback !== false;
+    if (r && !r.poll && !fb) body = r.answered
+      ? `<div class="result none"><div class="ico">✔</div><div class="pbig">התשובה נקלטה</div><div class="psub">התוצאות בסוף המשחק</div></div>`
+      : `<div class="result none"><div class="ico">⏰</div><div class="pbig">הזמן נגמר</div></div>`;
+    else if (!r) body = `<div class="result none"><div class="ico">⏰</div><div class="pbig">לא נקלטה תשובה</div></div>`;
+    else if (r.poll) body = r.answered
+      ? `<div class="result none"><div class="ico">📊</div><div class="pbig">תודה על ההצבעה!</div><div class="psub">התוצאות על המסך</div></div>`
+      : `<div class="result none"><div class="ico">⏰</div><div class="pbig">לא הספקת להצביע</div></div>`;
+    else if (r.ok) body = `<div class="result ok"><div class="ico">✔</div><div class="pbig">נכון!</div><div class="psub">+${r.pts} ${r.pts === 1 ? 'נקודה' : 'נקודות'}</div>${cfg.streak !== false && r.streak >= 2 ? `<div class="psub">🔥 רצף של ${r.streak} תשובות נכונות!</div>` : ''}</div>`;
+    else if (r.answered) body = `<div class="result bad"><div class="ico">✘</div><div class="pbig">לא נכון</div><div class="psub">בפעם הבאה!</div></div>`;
+    else body = `<div class="result none"><div class="ico">⏰</div><div class="pbig">הזמן נגמר</div></div>`;
+    if (r && !r.poll && fb) body += `<div class="psub">מקום <b>${r.rank}</b> מתוך ${r.of}</div>`;
+  } else if (m.state === 'end') {
+    const r = P.res;
+    const medal = r ? (['🥇', '🥈', '🥉'][r.rank - 1] || '🎉') : '🎉';
+    body = `${djLogo()}<div class="ico" style="font-size:90px">${medal}</div>${slogan()}<div class="pbig">המשחק נגמר!</div>
+      ${r ? `<div class="psub">מקום <b>${r.rank}</b> מתוך ${r.of}<br>${r.score} נקודות</div>` : ''}
+      <button class="btn ghost" onclick="PSTORE.removeItem(SESS_KEY);playerJoinScreen('')">משחק חדש</button>`;
+  }
+  app.innerHTML = `<div class="pwrap">${m.state === 'question' && P.answeredI !== m.i ? '' : pTop()}${body}</div>`;
+}
+
+function pTick() {
+  const m = P.meta; if (!m || m.state !== 'question') return clearInterval(P.timer);
+  const rem = Math.max(0, Math.ceil((m.q.start + m.q.dur * 1000 - DB.now()) / 1000));
+  if ($('ptimer')) { $('ptimer').textContent = rem; $('ptimer').classList.toggle('low', rem <= 5); }
+  const frac = Math.max(0, (m.q.start + m.q.dur * 1000 - DB.now()) / (m.q.dur * 1000));
+  if ($('ptfill')) { $('ptfill').style.width = (frac * 100) + '%'; $('ptbar').classList.toggle('low', rem <= 5); }
+  if (rem <= 0 && P.answeredI !== m.i) { clearInterval(P.timer); app.innerHTML = `<div class="pwrap">${pTop()}<div class="pbig">⏰ הזמן נגמר</div><div class="spinner"></div></div>`; }
+}
+
+async function pAnswer(j) {
+  const m = P.meta; if (!m || m.state !== 'question' || P.answeredI === m.i) return;
+  P.answeredI = m.i;
+  try { const s = JSON.parse(PSTORE.getItem(SESS_KEY)); s.answeredI = m.i; PSTORE.setItem(SESS_KEY, JSON.stringify(s)); } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate(40);
+  renderPlayer();
+  await DB.set(`games/${P.code}/answers/${m.i}/${P.pid}`, { a: j, t: DB.now() });
+}
+
+/* ====================== צפייה מרחוק ====================== */
+const W = { meta: null, players: {} };
+function watchInit(code) {
+  DB.on(`games/${code}/meta`, v => { W.meta = v; renderWatch(); });
+  DB.on(`games/${code}/players`, v => { W.players = v || {}; if (W.meta && W.meta.state === 'lobby') renderWatch(); });
+  setInterval(watchTick, 250);
+}
+function watchTick() {
+  const m = W.meta; if (!m || m.state !== 'question' || !$('timer')) return;
+  const left = m.q.start + m.q.dur * 1000 - DB.now(), rem = Math.max(0, Math.ceil(left / 1000));
+  $('timer').textContent = rem; $('timer').classList.toggle('low', rem <= 5);
+  $('tfill').style.width = Math.max(0, left / (m.q.dur * 1000)) * 100 + '%';
+}
+function renderWatch() {
+  const m = W.meta;
+  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons);
+  if (!m) { app.innerHTML = `<div class="pwrap"><div class="logo">🎯 טריוויה</div><div class="pbig">המשחק לא נמצא או שהסתיים</div></div>`; return; }
+  if (!m.remoteView) { app.innerHTML = `<div class="pwrap"><div class="logo">🎯 טריוויה</div><div class="pbig">צפייה מרחוק לא מופעלת במשחק הזה</div></div>`; return; }
+  const rows = list => (list || []).map((p, k) => `<div class="brow"><span><span class="r">${k + 1}</span>${esc(p.name)}</span><span class="side">${p.st >= 2 ? `<span class="streak">🔥${p.st}</span>` : ''}${p.d ? `<span class="delta ${p.d > 0 ? 'up' : 'down'}">${p.d > 0 ? '▲' : '▼'}${Math.abs(p.d)}</span>` : ''}<span>${p.score}</span></span></div>`).join('');
+  let body = '';
+  if (m.state === 'lobby') {
+    const names = Object.values(W.players).map(p => `<span class="chip">${esc(p.name)}</span>`).join('');
+    body = `<div class="board" style="text-align:center"><h2>המשחק יתחיל בקרוב…</h2></div><div class="chips" style="justify-content:center">${names}</div>`;
+  } else if (m.state === 'question') {
+    const q = m.q;
+    body = `<div class="qtext">${esc(q.text)}</div><div class="tbar" id="tbar"><div id="tfill"></div></div>
+      <div class="qmid"><div class="timer" id="timer">${q.dur}</div><div class="qmedia">${q.poll ? '<span class="polltag" style="font-size:22px">📊 סקר</span>' : ''}${q.media ? '<span class="polltag" style="font-size:22px">🖼 יש תמונה / סרטון במסך באולם</span>' : ''}</div><div></div></div>
+      ${answersHtml(q)}`;
+  } else if (m.state === 'reveal') {
+    const q = m.q, r = m.reveal || {};
+    const max = Math.max(1, ...(r.counts || [1]));
+    body = `<div class="qtext">${esc(q.text)}</div>
+      ${r.counts ? `<div class="bars">${r.counts.map((c, j) => `<div class="bar ${r.correct >= 0 && j !== r.correct ? 'dim' : ''}"><div class="n">${c}</div><div class="b" style="height:${Math.max(4, c / max * 150)}px;background:${ansColor(q, j)}"></div></div>`).join('')}</div><div style="height:18px"></div>${answersHtml(q, r.correct >= 0 ? r.correct : null)}`
+        : `<div class="board" style="text-align:center"><h2>⏰ הזמן נגמר!</h2><div style="font-size:28px">${r.answered || 0} ענו</div></div>`}
+      ${r.fast && r.fast.length ? `<div class="fastest">⚡ הכי מהירים: ${r.fast.map(f => `<span>${esc(f.name)} <small>${f.el} שנ'</small></span>`).join('')}</div>` : ''}`;
+  } else if (m.state === 'board') {
+    body = `<div class="board"><h2>טבלת המובילים</h2>${rows(m.board)}</div>`;
+  } else if (m.state === 'end') {
+    body = m.board ? `<div class="board"><h2>🏆 תוצאות סופיות 🏆</h2>${rows(m.board)}</div>` : `<div class="board" style="text-align:center"><h2>🎉 המשחק נגמר!</h2></div>`;
+  }
+  app.innerHTML = `<div class="stage"><div class="stage-top"><span style="display:flex;gap:10px;align-items:center">${djLogo()}<span class="pill">${esc(m.title)}</span></span>${m.state === 'question' || m.state === 'reveal' ? `<span class="pill">שאלה ${m.i + 1} מתוך ${m.total}</span>` : ''}<span class="pill">👁 צפייה מרחוק</span></div>${body}</div>`;
+  watchTick();
+}
+
+/* ====================== הפעלה ====================== */
+$('eq').innerHTML = Array.from({ length: 48 }, () => `<i style="animation-delay:-${(Math.random() * .9).toFixed(2)}s;animation-duration:${(.5 + Math.random() * .7).toFixed(2)}s"></i>`).join('');
+(async function boot() {
+  showBanner();
+  const params = new URLSearchParams(location.search);
+  if (params.has('watch')) {
+    watchInit((params.get('watch') || '').trim());
+  } else if (params.has('join') || params.has('play')) {
+    const code = (params.get('join') || '').trim();
+    let sess = null; try { sess = JSON.parse(PSTORE.getItem(SESS_KEY)); } catch (e) {}
+    // חזרה אוטומטית למשחק אם הטלפון התנתק / רוענן
+    if (sess && sess.pid && (!code || code === sess.code)) {
+      const meta = await DB.get(`games/${sess.code}/meta`);
+      if (meta && meta.state !== 'end' && meta.created === sess.created) return pJoin({ code: sess.code, name: sess.name });
+    }
+    playerJoinScreen(code);
+  } else {
+    renderHome();
+  }
+})();
+</script>
+</body>
+</html>
