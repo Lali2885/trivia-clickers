@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <style>
 :root{
   --bg:#0f1418; --bg2:#263238; --card:#ffffff; --ink:#1d1d2b; --muted:#6b6b80;
@@ -184,6 +185,40 @@ body.admin .hard td{background:#fdeeea}
 body.admin .slot.on{outline-color:var(--a-text)}
 body.admin .qcard.flash{outline-color:#F05235}
 body.admin .chk.ok .ic{background:#1fb86a}
+/* כניסה, אירועים ללקוחות */
+.login{max-width:520px;margin:30px auto;display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center}
+.login .alogo{width:190px}
+.login h1{font-size:40px;font-weight:900;margin:0}
+.lg-card{background:#fff;border:1px solid #e3eaee;border-radius:18px;padding:22px;width:100%;box-shadow:0 6px 22px rgba(38,50,56,.07);color:#263238}
+.lg-card h3{margin:0 0 14px;font-size:19px}
+.lg-row{display:flex;gap:8px}
+.lg-row input{flex:1;padding:12px;border-radius:12px;border:1px solid #d9e2e7;font-size:20px;text-align:center;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.lg-link{display:inline-block;margin-top:14px;color:#127ea6;font-weight:700;text-decoration:none}
+.lg-err{margin-top:12px;color:#d4432a;font-weight:500}
+.poweredby{display:flex;align-items:center;gap:10px;color:#6b7c85;font-size:13px;margin-top:6px}
+.poweredby img{height:34px;background:#fff;border-radius:8px;padding:2px 6px}
+.evpage h1{font-size:34px;margin:6px 0 4px}
+.evpage .sub{color:#6b7c85;margin-bottom:14px}
+.evpage-logo{max-width:260px;max-height:170px;border-radius:14px}
+.evpage .btn.big{margin-top:18px}
+.hometabs{margin:18px 0 4px}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7c85}
+.who button{border:1px solid #d9e2e7;background:#fff;border-radius:8px;padding:4px 10px;font-size:13px;color:#263238}
+.evhead{display:flex;gap:12px;align-items:center}
+.evhead img{width:56px;height:56px;object-fit:contain;border-radius:10px;background:#f4f7f9;flex:none}
+.evcode{font-family:monospace;font-size:22px;font-weight:700;letter-spacing:3px;color:#127ea6;background:#eef7fb;border-radius:10px;padding:6px 12px;align-self:flex-start;direction:ltr}
+.tag.st-live{background:#e3f7ec;color:#13824b}.tag.st-future{background:#fff4d6;color:#8a6200}.tag.st-past{background:#eef2f4;color:#6b7c85}
+body.admin .set.ev.past{opacity:.7}
+body.admin .set.ev::before{background:linear-gradient(90deg,#25BDF0,#1fb86a)}
+.evlogo{max-height:70px;max-width:160px;border-radius:8px;border:1px solid #e3eaee;background:#fff}
+.linkbox{background:#f4f7f9;border:1px solid #e3eaee;border-radius:10px;padding:10px 12px;font-size:14px;word-break:break-all}
+.qtools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.evbrand{display:flex;align-items:center;gap:18px;margin-bottom:14px}
+.evbrand img{max-height:120px;max-width:260px;background:#fff;border-radius:14px;padding:6px}
+.evbrand h1{margin:0;font-size:42px;font-weight:900;line-height:1.1}
+.clickonly{padding:30px 10px}
+.clickonly .big{font-size:80px}
+.clickonly h2{color:var(--ink);margin:10px 0}
 .slogan{display:none}
 .theme-dj .slogan{display:inline-block;font-weight:900;font-size:26px;background:linear-gradient(90deg,#F05235,#25BDF0);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:.5px}
 .theme-dj .slogan.big{display:block;font-size:46px;margin-bottom:18px}
@@ -607,7 +642,7 @@ const qType = q => q.poll ? 'poll' : q.tf ? 'tf' : 'mc';
 
 /* ====================== הגדרות משחק ====================== */
 const DEFAULT_SETTINGS = {
-  theme: 'classic', djIcons: DJ_DEFAULT_ICONS, qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
+  theme: 'classic', djIcons: DJ_DEFAULT_ICONS, joinMode: 'mixed', qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
   showAnswersPhone: true, lateJoin: true,
   scoring: 'speed', boardWhen: 'each', boardEvery: 3, resultsSec: 10,
   showCorrect: true, showFastest: true, showBoard: true, showRankChange: true, showStreak: true, autoNext: false,
@@ -623,6 +658,7 @@ function showBanner() {
 
 function renderHome() {
   window.onkeydown = null;
+  if (!isAdmin()) return AUTH_READY ? renderLogin() : (app.innerHTML = '<div class="wrap"><div class="empty">טוען…</div></div>');
   setTheme('classic');
   const sets = loadSets(), runsBySet = {};
   loadRuns().forEach(r => { runsBySet[r.setId] = (runsBySet[r.setId] || 0) + 1; });
@@ -636,7 +672,8 @@ function renderHome() {
         <div class="alogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>
         <div><h1>טריוויה <span class="grad">קליקרים</span></h1><div class="sub">השאלות על המסך הגדול · עונים מהטלפון</div></div>
       </div>
-      <div class="a-slogan grad">תרקדי. תשתחררי. תהני</div>
+      <div style="text-align:left"><div class="a-slogan grad">תרקדי. תשתחררי. תהני</div>
+        ${ONLINE && ADMIN ? `<div class="who">👤 ${esc(ADMIN.email)} <button onclick="logout()">יציאה</button></div>` : ''}</div>
     </header>
     <div class="statsrow">
       <div class="mini"><b>${sets.length}</b><span>משחקים</span></div>
@@ -644,6 +681,11 @@ function renderHome() {
       <div class="mini"><b>${runs.length}</b><span>הפעלות</span></div>
       <div class="mini"><b>${totalPlayers}</b><span>משתתפים עד היום</span></div>
     </div>
+    <div class="tabs hometabs">
+      <button class="tab ${HOME_TAB === 'sets' ? 'on' : ''}" onclick="HOME_TAB='sets';renderHome()">🎮 המשחקים שלי</button>
+      <button class="tab ${HOME_TAB === 'events' ? 'on' : ''}" onclick="HOME_TAB='events';renderHome()">🎟 אירועים ללקוחות</button>
+    </div>
+    <div id="homebody">${HOME_TAB === 'events' ? '' : `
     <div class="toolbar">
       <button class="btn primary" onclick="newSet()">+ משחק חדש</button>
       <button class="btn" onclick="$('xl').click()">⬆ ייבוא מאקסל</button>
@@ -673,9 +715,10 @@ function renderHome() {
         </div>
       </div>`; }).join('')}
       <button class="set newcard" onclick="newSet()"><span>+</span>משחק חדש</button>
-    </div>
+    </div>`}</div>
     <div class="foot">🔗 כתובת הכניסה למשתתפים: <b dir="ltr">${esc(joinBase())}?play</b></div>
   </div>`;
+  if (HOME_TAB === 'events') renderEventsBody();
 }
 
 function newSet() { editing = { id: rid(), title: '', questions: [], settings: { ...DEFAULT_SETTINGS }, tab: 'q', isNew: true }; editing.questions.push(blankQ()); renderEditor(); }
@@ -713,16 +756,20 @@ function renderEditor() {
   setTheme(s.settings && s.settings.theme, s.settings && s.settings.djIcons);
   app.innerHTML = `<div class="wrap">
     <div class="toolbar">
-      <button class="btn ghost" onclick="renderHome()">→ חזרה בלי לשמור</button>
+      <button class="btn ghost" onclick="if(editing&&editing.isEvent)HOME_TAB='events';editing=null;renderHome()">→ חזרה בלי לשמור</button>
+      ${s.isEvent ? `<span class="tag st-live" style="font-size:14px">🎟 אירוע ${esc(cleanCode(s.ev.code))}</span>` : ''}
       <span class="sp"></span>
       <button class="btn primary" onclick="saveEdit()">שמירה</button>
     </div>
-    <input class="title-in" value="${esc(s.title)}" oninput="editing.title=this.value" placeholder="שם המשחק">
+    <input class="title-in" value="${esc(s.title)}" oninput="editing.title=this.value" placeholder="${s.isEvent ? 'שם האירוע (יופיע על המסך), למשל: בר המצווה של יוסי' : 'שם המשחק'}">
     <div class="tabs">
-      ${[['q', `שאלות (${s.questions.length})`], ['s', '⚙ הגדרות'], ['a', '▶ הפעלה'], ['st', '📊 סטטיסטיקות']].map(([k, t]) =>
+      ${[...(s.isEvent ? [['ev', '🎟 פרטי האירוע']] : []), ['q', `שאלות (${s.questions.length})`], ['s', '⚙ הגדרות'], ['a', '▶ הפעלה'], ['st', '📊 סטטיסטיקות']].map(([k, t]) =>
         `<button class="tab ${(s.tab || 'q') === k ? 'on' : ''}" onclick="editing.tab='${k}';renderEditor()">${t}</button>`).join('')}
     </div>
-    ${s.tab === 's' ? settingsHtml() : s.tab === 'a' ? activateHtml() : s.tab === 'st' ? statsHtml() : s.questions.map(qEditor).join('') + '<button class="btn add" onclick="addQ()">+ הוספת שאלה</button>'}
+    ${s.tab === 'ev' ? evHtml() : s.tab === 's' ? settingsHtml() : s.tab === 'a' ? activateHtml() : s.tab === 'st' ? statsHtml() :
+      `<div class="qtools"><button class="mb" onclick="$('cfile').click()">⬆ ייבוא מטופס לקוח (אקסל)</button>${s.isEvent ? '' : '<a class="mb" href="client-form.xlsx" download="טופס שאלות לאירוע.xlsx">⬇ טופס ריק למילוי</a>'}</div>` +
+      s.questions.map(qEditor).join('') + '<button class="btn add" onclick="addQ()">+ הוספת שאלה</button>'}
+    <input type="file" id="cfile" accept=".xlsx,.xls" hidden onchange="importClientForm(this)">
     <input type="file" id="mfile" accept="image/*,video/*" hidden onchange="mediaPicked(this)">
   </div>`;
   hydrateMedia(app);
@@ -786,6 +833,7 @@ function settingsHtml() {
       </div>
       ${c.theme === 'dj' ? iconPickerHtml(c) : ''}
       ${c.music === 'file' ? `<div class="mrow">${c.musicFile ? `🎵 ${esc(c.musicFile.name || 'קובץ מוזיקה')} <button class="mb" onclick="setS('musicFile',null,true)">הסרה</button>` : `<button class="mb" onclick="$('afile').click()">בחירת קובץ מוזיקה מהמחשב</button>`}<input type="file" id="afile" accept="audio/*" hidden onchange="musicPicked(this)"></div>` : ''}
+      <div class="frow" style="margin-top:12px">${sel('joinMode', 'מי משתתף', [['mixed', 'טלפונים וקליקרים'], ['phones', 'טלפונים בלבד'], ['clickers', 'קליקרים בלבד']])}</div>
       <div class="togs">${tog('showAnswersPhone', 'להראות למשתתפים בטלפון אם צדקו')}${tog('lateJoin', 'אפשר הצטרפות מאוחרת')}</div>
     </div>
     <div class="scard">
@@ -870,6 +918,12 @@ function saveEdit(stay) {
   });
   if (bad.length) { alert('בשאלות האלה חסר משהו (טקסט, לפחות 2 תשובות, או שהתשובה הנכונה ריקה): ' + bad.join(', ')); return false; }
   const clean = { id: s.id, title: s.title.trim(), questions: normQs(s.questions), settings: s.settings };
+  if (s.isEvent) {
+    // קבצי מדיה ששמורים רק במחשב הזה לא יעבדו אצל הלקוח — משאירים רק קישורים
+    const ok = m => m && !String(m.src).startsWith('idb:');
+    clean.questions = clean.questions.map(q => { const o = { ...q }; if (!ok(o.media)) delete o.media; if (o.amedia) { o.amedia = o.amedia.map(m => ok(m) ? m : null); if (!o.amedia.some(Boolean)) delete o.amedia; } return o; });
+    return saveEventRec(clean, stay);
+  }
   const sets = loadSets(), i = sets.findIndex(x => x.id === s.id);
   if (i >= 0) sets[i] = clean; else sets.push(clean);
   saveSets(sets);
@@ -928,7 +982,8 @@ function fixNow() {
   if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2500); }
 }
 async function activateNow() {
-  if (!saveEdit(true)) return;
+  if (!(await saveEdit(true))) return;
+  if (editing.isEvent) { const code = cleanCode(editing.ev.code); editing = null; return runEventAsAdmin(code); }
   const id = editing.id; editing = null;
   return startGame(id);
 }
@@ -940,7 +995,7 @@ const pctOf = p => p.of ? Math.round(p.correct / p.of * 100) : null;
 function runAvg(r) { const v = r.players.map(pctOf).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; }
 const fmtDate = t => new Date(t).toLocaleString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 function statsHtml() {
-  const runs = loadRuns().filter(r => r.setId === editing.id);
+  const runs = editing.isEvent ? (editing.runs || []) : loadRuns().filter(r => r.setId === editing.id);
   const totalP = runs.reduce((t, r) => t + r.players.length, 0);
   const avgs = runs.map(runAvg).filter(x => x != null);
   const avg = avgs.length ? Math.round(avgs.reduce((a, b) => a + b, 0) / avgs.length) + '%' : '—';
@@ -979,8 +1034,9 @@ function runHtml(r) {
     </div>` : ''}
   </div>`;
 }
+function findRun(id) { return ((editing && editing.isEvent) ? editing.runs || [] : loadRuns()).find(x => x.id === id); }
 function exportRun(id) {
-  const r = loadRuns().find(x => x.id === id); if (!r) return;
+  const r = findRun(id); if (!r) return;
   const wb = XLSX.utils.book_new(); wb.Workbook = { Views: [{ RTL: true }, { RTL: true }] };
   const ws1 = XLSX.utils.aoa_to_sheet([['מקום', 'שם', 'נקודות', 'תשובות נכונות', 'מתוך', 'אחוז', 'ענה על'],
     ...r.players.map((p, k) => [k + 1, p.name, p.score, p.correct, p.of, pctOf(p), p.answered])]);
@@ -995,6 +1051,10 @@ function exportRun(id) {
 }
 function delRun(id) {
   if (!confirm('למחוק את ההפעלה הזאת מהסטטיסטיקות?')) return;
+  if (editing && editing.isEvent) {
+    DB.remove(`events/${cleanCode(editing.ev.origCode)}/runs/${id}`);
+    editing.runs = editing.runs.filter(r => r.id !== id); return renderEditor();
+  }
   localStorage.setItem(RUNS_KEY, JSON.stringify(loadRuns().filter(r => r.id !== id)));
   renderEditor();
 }
@@ -1048,6 +1108,307 @@ function importExcel(inp) {
     } catch (err) { alert('לא הצלחתי לקרוא את הקובץ: ' + err.message); }
   };
   r.readAsArrayBuffer(f);
+}
+
+/* ====================== כניסה למנהלת + אירועים ללקוחות ====================== */
+const ADMIN_EMAIL = '8475102@gmail.com';
+let ADMIN = null, AUTH_READY = !ONLINE;
+const isAdmin = () => !ONLINE || !!(ADMIN && ADMIN.email === ADMIN_EMAIL);
+let HOME_TAB = 'sets';
+
+function renderLogin(msg) {
+  document.body.classList.add('admin');
+  setTheme('classic');
+  app.innerHTML = `<div class="wrap"><div class="login">
+    <div class="alogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>
+    <h1>טריוויה <span class="grad">קליקרים</span></h1>
+    <div class="lg-card">
+      <h3>🎟 יש לך קוד אירוע?</h3>
+      <div class="lg-row"><input id="evcode" placeholder="קוד האירוע" maxlength="20" dir="ltr" onkeydown="if(event.key==='Enter')goEvent()"><button class="btn primary" onclick="goEvent()">כניסה</button></div>
+      <a class="lg-link" href="?play">📱 הצטרפות למשחק כמשתתף</a>
+    </div>
+    <div class="lg-card">
+      <h3>🔐 כניסה לאזור הניהול</h3>
+      <button class="btn" onclick="loginGoogle()">התחברות עם Google</button>
+      ${msg ? `<div class="lg-err">${esc(msg)}</div>` : ''}
+    </div>
+  </div></div>`;
+}
+function goEvent() { const c = ($('evcode').value || '').trim().toUpperCase(); if (c) location.search = '?event=' + encodeURIComponent(c); }
+async function loginGoogle() {
+  try { await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch (e) { renderLogin('ההתחברות לא הצליחה: ' + (e.message || e.code)); }
+}
+function logout() { if (confirm('להתנתק מאזור הניהול?')) firebase.auth().signOut(); }
+
+/* ---- נתוני אירועים בענן ---- */
+const EV_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const newEvCode = () => Array.from({ length: 6 }, () => EV_CHARS[Math.floor(Math.random() * EV_CHARS.length)]).join('');
+const cleanCode = c => String(c || '').toUpperCase().replace(/[^A-Z0-9-]/g, '');
+const todayStr = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+function evStatus(e) {
+  const t = todayStr();
+  if (e.from && t < e.from) return { k: 'future', t: 'עתידי' };
+  if (e.to && t > e.to) return { k: 'past', t: 'הסתיים' };
+  return { k: 'live', t: 'פעיל' };
+}
+const fmtD = d => d ? d.split('-').reverse().join('.') : '';
+const evDates = e => e.from || e.to ? (e.from === e.to || !e.to ? fmtD(e.from) : `${fmtD(e.from) || '…'} – ${fmtD(e.to) || '…'}`) : 'ללא הגבלת תאריך';
+const evLink = code => joinBase() + '?event=' + code;
+const JOIN_MODES = { mixed: 'טלפונים וקליקרים', phones: 'טלפונים בלבד', clickers: 'קליקרים בלבד' };
+
+async function renderEventsBody() {
+  const box = $('homebody'); if (!box) return;
+  box.innerHTML = '<div class="empty">טוען אירועים…</div>';
+  let evs = [];
+  try { evs = Object.values((await DB.get('events')) || {}); }
+  catch (e) { box.innerHTML = `<div class="empty">לא הצלחתי לטעון אירועים: ${esc(e.message)}</div>`; return; }
+  evs.sort((a, b) => String(b.from || b.createdAt || '').localeCompare(String(a.from || a.createdAt || '')));
+  if (!$('homebody')) return;
+  $('homebody').innerHTML = `
+    <div class="toolbar">
+      <button class="btn primary" onclick="newEvent()">+ אירוע חדש</button>
+      <a class="btn" href="client-form.xlsx" download="טופס שאלות לאירוע.xlsx">⬇ טופס שאלות ללקוח</a>
+    </div>
+    <div class="sets">${evs.map(e => {
+      const st = evStatus(e), n = normQs(e.questions).length, runs = e.runs ? Object.keys(e.runs).length : 0;
+      return `<div class="set ev ${st.k}">
+        <div class="sethead">
+          <span class="tag st-${st.k}">${st.t}</span>
+          <span class="acts">
+            <button class="icb" title="העתקת קישור ללקוח" onclick="copyText('${evLink(e.code)}',this)">🔗</button>
+            <button class="icb" title="פתיחת דף הלקוח" onclick="window.open('${evLink(e.code)}','_blank')">↗</button>
+            <button class="icb del" title="מחיקה" onclick="delEvent('${e.code}')">🗑</button>
+          </span>
+        </div>
+        <div class="evhead">${e.logo ? `<img src="${e.logo}" alt="">` : ''}<div><h3>${esc(e.title || 'ללא שם')}</h3><div class="meta"><span>👤 ${esc(e.client || '—')}</span></div></div></div>
+        <div class="meta"><span>📅 ${evDates(e)}</span><span>❓ ${n} שאלות</span>${runs ? `<span>▶ ${runs} הפעלות</span>` : ''}</div>
+        <div class="evcode" title="קוד האירוע">${e.code}</div>
+        <div class="row">
+          <button class="btn primary" onclick="openEvent('${e.code}')">✏ עריכה</button>
+          <button class="btn" onclick="runEventAsAdmin('${e.code}')">▶ הפעלה</button>
+        </div>
+      </div>`; }).join('')}
+      <button class="set newcard" onclick="newEvent()"><span>+</span>אירוע חדש</button>
+    </div>`;
+}
+function copyText(t, btn) { navigator.clipboard.writeText(t).then(() => { if (btn) { const o = btn.textContent; btn.textContent = '✔'; setTimeout(() => btn.textContent = o, 1200); } }); }
+
+function eventToEditing(e, isNew) {
+  editing = {
+    id: 'ev-' + e.code, isEvent: true, isNew, title: e.title || '',
+    questions: (e.questions || []).map(q => q.tf ? q : { ...q, answers: [0, 1, 2, 3].map(j => (q.answers || [])[j] || ''), amedia: [0, 1, 2, 3].map(j => (q.amedia || [])[j] || null) }),
+    settings: { ...DEFAULT_SETTINGS, ...(e.settings || {}) },
+    ev: { code: e.code, origCode: isNew ? null : e.code, client: e.client || '', from: e.from || '', to: e.to || '', logo: e.logo || null },
+    runs: Object.values(e.runs || {}).map(r => ({ ...r, players: r.players || [], questions: (r.questions || []).map(q => ({ ...q, answers: q.answers || [], counts: q.counts || [] })) })).sort((a, b) => b.date - a.date),
+    tab: isNew ? 'ev' : 'q'
+  };
+  if (!editing.questions.length) editing.questions.push(blankQ());
+}
+function newEvent() {
+  eventToEditing({ code: newEvCode(), from: todayStr(), to: todayStr() }, true);
+  renderEditor();
+}
+async function openEvent(code) {
+  const e = await DB.get('events/' + code);
+  if (!e) return alert('האירוע לא נמצא');
+  eventToEditing(e, false); renderEditor();
+}
+async function delEvent(code) {
+  if (!confirm(`למחוק את האירוע ${code}? הלקוח לא יוכל להיכנס יותר, והסטטיסטיקות שלו יימחקו.`)) return;
+  await DB.remove('events/' + code); renderEventsBody();
+}
+async function runEventAsAdmin(code) {
+  const e = await DB.get('events/' + code); if (!e) return;
+  return startSet({ title: e.title, questions: e.questions, settings: e.settings }, { event: { code, logo: e.logo, title: e.title } });
+}
+
+/* ---- לשונית "פרטי האירוע" בעורך ---- */
+function evHtml() {
+  const v = editing.ev, link = evLink(cleanCode(v.code));
+  const sets = loadSets();
+  return `<div class="sgrid">
+    <div class="scard">
+      <h3>🎟 פרטי האירוע</h3>
+      <div class="frow">
+        <label class="fld"><span>שם הלקוח</span><input value="${esc(v.client)}" oninput="editing.ev.client=this.value" placeholder="למשל: משפחת כהן"></label>
+        <label class="fld"><span>קוד אירוע</span><input value="${esc(v.code)}" dir="ltr" maxlength="20" oninput="this.value=cleanCode(this.value);editing.ev.code=this.value"><small>הלקוח נכנס עם הקוד הזה. אותיות באנגלית ומספרים.</small></label>
+      </div>
+      <div class="frow">
+        <label class="fld"><span>פעיל מתאריך</span><input type="date" value="${v.from}" onchange="editing.ev.from=this.value"></label>
+        <label class="fld"><span>עד תאריך</span><input type="date" value="${v.to}" onchange="editing.ev.to=this.value"><small>אחרי התאריך הקוד מפסיק לעבוד</small></label>
+      </div>
+      <div class="frow">
+        <label class="fld"><span>מי משתתף באירוע</span><select onchange="editing.settings.joinMode=this.value">${Object.entries(JOIN_MODES).map(([k, t]) => `<option value="${k}" ${editing.settings.joinMode === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      </div>
+      <div class="fld"><span>לוגו / תמונה של הלקוח (יופיע במסך הפתיחה)</span></div>
+      <div class="mrow">${v.logo ? `<img class="evlogo" src="${v.logo}" alt=""><button class="mb" onclick="editing.ev.logo=null;renderEditor()">הסרה</button>` : ''}<button class="mb" onclick="$('logofile').click()">🖼 ${v.logo ? 'החלפה' : 'בחירת תמונה'}</button>
+        <input type="file" id="logofile" accept="image/*" hidden onchange="logoPicked(this)"></div>
+    </div>
+    <div class="scard">
+      <h3>🔗 קישור ללקוח</h3>
+      <div class="linkbox" dir="ltr">${esc(link)}</div>
+      <div class="frow" style="margin-top:10px">
+        <button class="mb" onclick="copyText('${esc(link)}',this)">העתקת הקישור</button>
+        ${v.origCode ? `<button class="mb" onclick="window.open('${esc(link)}','_blank')">פתיחת דף הלקוח ↗</button>` : '<span class="hint">הקישור יעבוד אחרי השמירה</span>'}
+      </div>
+      <h3 style="margin-top:18px">❓ שאלות לאירוע</h3>
+      <div class="frow">
+        <button class="mb" onclick="$('cfile').click()">⬆ ייבוא מטופס לקוח (אקסל)</button>
+        <a class="mb" href="client-form.xlsx" download="טופס שאלות לאירוע.xlsx">⬇ טופס ריק לשליחה ללקוח</a>
+      </div>
+      <div class="frow">
+        <select id="copyfrom"><option value="">העתקת שאלות ממשחק קיים…</option>${sets.map(s => `<option value="${s.id}">${esc(s.title)} (${normQs(s.questions).length})</option>`).join('')}</select>
+        <button class="mb" onclick="copyFromSet($('copyfrom').value)">הוספה</button>
+      </div>
+      <div class="hint">יש כרגע ${normQs(editing.questions).length} שאלות תקינות. אפשר לערוך אותן בלשונית "שאלות".</div>
+    </div>
+  </div>`;
+}
+function logoPicked(inp) {
+  const f = inp.files[0]; inp.value = ''; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, 500 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    editing.ev.logo = f.type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', .85);
+    URL.revokeObjectURL(img.src); renderEditor();
+  };
+  img.src = URL.createObjectURL(f);
+}
+function padQ(q) { return q.tf ? { ...q } : { ...q, answers: [0, 1, 2, 3].map(j => (q.answers || [])[j] || ''), amedia: [0, 1, 2, 3].map(j => (q.amedia || [])[j] || null) }; }
+function addQuestions(list) {
+  editing.questions = editing.questions.filter(q => !isBlankQ(q)).concat(list.map(padQ));
+  if (!editing.questions.length) editing.questions.push(blankQ());
+}
+function copyFromSet(id) {
+  const s = loadSets().find(x => x.id === id); if (!s) return alert('בחרי משחק מהרשימה');
+  const qs = normQs(s.questions).map(q => { const { media, amedia, ...rest } = q; return rest; }); // מדיה מקומית לא עוברת לענן
+  addQuestions(qs); editing.tab = 'q'; renderEditor();
+  alert(`נוספו ${qs.length} שאלות מ"${s.title}"`);
+}
+
+/* ---- ייבוא טופס לקוח (אקסל) ---- */
+function shuffleWithCorrect(arr, correctIdx) {
+  const items = arr.map((a, i) => ({ a, ok: i === correctIdx }));
+  for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
+  return { answers: items.map(x => x.a), correct: items.findIndex(x => x.ok) };
+}
+function parseClientForm(rows) {
+  const S = v => String(v ?? '').trim();
+  const out = { questions: [], partial: 0, skipped: 0, title: '', theme: '', client: '' };
+  const hi = rows.findIndex(r => r.some(c => S(c) === 'שאלה') && r.some(c => S(c).includes('התשובה הנכונה')));
+  if (hi < 0) return null;
+  for (const r of rows.slice(0, hi)) {
+    const label = S(r[1]), val = S(r[2]);
+    if (!val) continue;
+    if (label.includes('שם האירוע')) out.title = val;
+    else if (label.includes('ערכת עיצוב')) out.theme = /dj/i.test(val) ? 'dj' : 'classic';
+    else if (label.includes('שם הלקוח') || label.includes('בעל השמחה')) out.client = val;
+  }
+  const qTime = (editing && editing.settings && editing.settings.qTime) || 20;
+  for (const r of rows.slice(hi + 1)) {
+    const num = S(r[0]), text = S(r[1]);
+    if (!text || num.includes('דוגמה') || !/^\d+$/.test(num)) continue;
+    const correct = S(r[2]), wrongs = [r[3], r[4], r[5]].map(S).filter(Boolean), note = S(r[6]);
+    if (note.includes('סקר')) {
+      const opts = [correct, ...wrongs].filter(Boolean).slice(0, 4);
+      if (opts.length < 2) { out.skipped++; continue; }
+      out.questions.push({ text, answers: opts, correct: -1, poll: true, tf: false, time: qTime });
+      continue;
+    }
+    if (!correct) { out.skipped++; continue; }
+    const TF = ['נכון', 'לא נכון'];
+    if (TF.includes(correct) && wrongs.every(w => TF.includes(w))) {
+      out.questions.push({ text, answers: TF.slice(), correct: TF.indexOf(correct), tf: true, poll: false, time: qTime });
+      continue;
+    }
+    const opts = [correct, ...wrongs].slice(0, 4);
+    if (opts.length < 2) out.partial++;
+    const sh = shuffleWithCorrect(opts, 0);
+    out.questions.push({ text, answers: sh.answers, correct: sh.correct, tf: false, poll: false, time: qTime });
+  }
+  return out;
+}
+function importClientForm(inp) {
+  const f = inp.files[0]; inp.value = ''; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+      const res = parseClientForm(rows);
+      if (!res) return alert('זה לא נראה כמו טופס שאלות של לקוח (לא נמצאה שורת כותרות עם "שאלה" ו"התשובה הנכונה"). לייבוא קובץ רגיל השתמשי ב"ייבוא מאקסל" במסך הראשי.');
+      if (!res.questions.length) return alert('לא נמצאו בטופס שאלות עם תשובות.');
+      addQuestions(res.questions);
+      if (res.title && !String(editing.title).trim()) editing.title = res.title;
+      if (res.theme) editing.settings.theme = res.theme;
+      if (res.client && editing.ev && !editing.ev.client) editing.ev.client = res.client;
+      editing.tab = 'q'; renderEditor();
+      alert(`נטענו ${res.questions.length} שאלות.` +
+        (res.partial ? `\n${res.partial} שאלות בלי תשובות שגויות – צריך להשלים להן תשובות (לשונית "הפעלה" תראה איזה).` : '') +
+        (res.skipped ? `\n${res.skipped} שורות דולגו כי לא מולאה בהן תשובה.` : '') +
+        '\nסדר התשובות עורבב אוטומטית.');
+    } catch (err) { alert('לא הצלחתי לקרוא את הקובץ: ' + err.message); }
+  };
+  r.readAsArrayBuffer(f);
+}
+
+async function saveEventRec(clean, stay) {
+  const v = editing.ev, code = cleanCode(v.code);
+  if (code.length < 3) { alert('קוד האירוע צריך להיות לפחות 3 תווים'); return false; }
+  if (v.from && v.to && v.to < v.from) { alert('תאריך הסיום לפני תאריך ההתחלה'); return false; }
+  try {
+    if (code !== v.origCode) {
+      if (await DB.get('events/' + code)) { alert(`הקוד ${code} כבר תפוס. בחרי קוד אחר.`); return false; }
+    }
+    const rec = { code, title: clean.title, client: v.client.trim(), from: v.from || '', to: v.to || '', logo: v.logo || null,
+      questions: clean.questions, settings: clean.settings, updatedAt: Date.now() };
+    if (!v.origCode) rec.createdAt = Date.now();
+    await DB.update('events/' + code, rec);
+    if (v.origCode && v.origCode !== code) {
+      const old = await DB.get('events/' + v.origCode);
+      if (old && old.runs) await DB.set('events/' + code + '/runs', old.runs);
+      await DB.remove('events/' + v.origCode);
+    }
+    v.origCode = code; v.code = code; editing.id = 'ev-' + code; editing.isNew = false;
+  } catch (e) { alert('השמירה נכשלה: ' + e.message + '\n(צריך להיות מחוברת לאזור הניהול)'); return false; }
+  if (!stay) { editing = null; HOME_TAB = 'events'; renderHome(); }
+  return true;
+}
+
+/* ---- דף האירוע של הלקוח (?event=CODE) ---- */
+async function renderEventPage(code) {
+  document.body.classList.add('admin'); setTheme('classic');
+  app.innerHTML = '<div class="wrap"><div class="empty">טוען…</div></div>';
+  code = cleanCode(code);
+  const e = code ? await DB.get('events/' + code) : null;
+  const shell = inner => `<div class="wrap"><div class="login">${inner}
+    <div class="poweredby"><img src="logo-dj.png" alt=""><span>מופעל על ידי ללי שטרן · מוזיקה בקצב</span></div></div></div>`;
+  if (!e) {
+    app.innerHTML = shell(`<div class="lg-card"><h3>🔍 קוד האירוע לא נמצא</h3>
+      <div class="lg-row"><input id="evcode" placeholder="קוד האירוע" dir="ltr" value="${esc(code)}" onkeydown="if(event.key==='Enter')goEvent()"><button class="btn primary" onclick="goEvent()">כניסה</button></div></div>`);
+    return;
+  }
+  const st = evStatus(e), n = normQs(e.questions).length;
+  const jm = (e.settings && e.settings.joinMode) || 'mixed';
+  app.innerHTML = shell(`
+    <div class="lg-card evpage">
+      ${e.logo ? `<img class="evpage-logo" src="${e.logo}" alt="">` : ''}
+      <h1>${esc(e.title || 'משחק טריוויה')}</h1>
+      ${e.client ? `<div class="sub">${esc(e.client)}</div>` : ''}
+      <div class="summary" style="justify-content:center"><span>📅 ${evDates(e)}</span><span>❓ ${n} שאלות</span><span>👥 ${JOIN_MODES[jm]}</span></div>
+      ${st.k === 'live' && n ? `
+        <button class="btn primary big" onclick="startClientEvent('${e.code}')">▶ הפעלת המשחק</button>
+        <div class="hint" style="margin-top:12px">💡 מומלץ לחבר את המחשב למסך גדול או למקרן לפני ההפעלה.</div>` :
+        `<div class="lg-err">${!n ? 'עדיין אין שאלות באירוע הזה.' : st.k === 'future' ? `האירוע ייפתח ב-${fmtD(e.from)}.` : 'תוקף האירוע הסתיים.'}</div>`}
+    </div>`);
+}
+async function startClientEvent(code) {
+  const e = await DB.get('events/' + code); if (!e) return;
+  try { await document.documentElement.requestFullscreen(); } catch (er) {}
+  return startSet({ title: e.title, questions: e.questions, settings: e.settings }, { event: { code, logo: e.logo, title: e.title }, onExit: () => renderEventPage(code) });
 }
 
 /* ====================== מסך המנחה (המחשב) ====================== */
@@ -1122,6 +1483,9 @@ function scheduleAuto() {
 
 async function startGame(id) {
   const set = loadSets().find(s => s.id === id);
+  return startSet(set, { setId: id });
+}
+async function startSet(set, opts = {}) {
   const qs = normQs(set && set.questions);
   if (!qs.length) return alert('אין במשחק הזה שאלות תקינות');
   const cfg = getSettings(set);
@@ -1134,10 +1498,10 @@ async function startGame(id) {
     if (!ex || DB.now() - (ex.created || 0) > 6 * 3600e3) break;
   }
   await DB.remove(`games/${code}`);
-  H = { code, title: set.title, qs, cfg, qi: -1, players: {}, answers: {}, state: 'lobby', streak: {}, delta: {}, setId: id, runId: rid(), startedAt: Date.now(), qStats: [], pstat: {} };
+  H = { code, title: set.title, qs, cfg, qi: -1, players: {}, answers: {}, state: 'lobby', streak: {}, delta: {}, setId: opts.setId || null, event: opts.event || null, onExit: opts.onExit || null, runId: rid(), startedAt: Date.now(), qStats: [], pstat: {} };
   await DB.set(gp('meta'), {
     state: 'lobby', title: set.title, total: qs.length, created: DB.now(), remoteView: !!cfg.remoteView,
-    cfg: { maxPlayers: cfg.maxPlayers, lateJoin: cfg.lateJoin, feedback: cfg.showAnswersPhone, streak: cfg.showStreak, scoring: cfg.scoring, theme: cfg.theme, icons: cfg.djIcons }
+    cfg: { maxPlayers: cfg.maxPlayers, lateJoin: cfg.lateJoin, feedback: cfg.showAnswersPhone, streak: cfg.showStreak, scoring: cfg.scoring, theme: cfg.theme, icons: cfg.djIcons, joinMode: cfg.joinMode }
   });
   H.unsubP = DB.on(gp('players'), v => { H.players = v || {}; onPlayers(); });
   window.onkeydown = e => {
@@ -1171,7 +1535,12 @@ function endHost() {
   }
   Music.stop();
   document.querySelectorAll('.confetti').forEach(d => d.remove());
-  H = null; renderHome();
+  const exit = H && H.onExit, wasEvent = H && H.event;
+  H = null;
+  if (document.fullscreenElement && exit) document.exitFullscreen().catch(() => {});
+  if (exit) return exit();
+  if (wasEvent) HOME_TAB = 'events';
+  renderHome();
 }
 
 function renderLobby() {
@@ -1182,17 +1551,18 @@ function renderLobby() {
     <div class="lobby">
       <div class="joinbox">
         ${djLogo()}
+        ${H.cfg.joinMode === 'clickers' ? `<div class="clickonly"><div class="big">🎛</div><h2>משחקים עם השלטים</h2><div class="lbl">כל אחד לוחץ על המספר של התשובה בשלט שלו</div></div>` : `
         <div class="lbl">סורקים את הקוד עם המצלמה</div>
         <div id="qr"></div>
         <div class="lbl">או נכנסים לאתר ומקלידים את הקוד</div>
         <div class="code">${H.code}</div>
         <div class="url">${esc(joinBase())}?play</div>
-        ${!ONLINE ? `<p><a href="${esc(url)}" target="_blank" style="color:var(--bg2);font-weight:700">פתיחת חלון משתתף לבדיקה ↗</a></p>` : ''}
+        ${!ONLINE ? `<p><a href="${esc(url)}" target="_blank" style="color:var(--bg2);font-weight:700">פתיחת חלון משתתף לבדיקה ↗</a></p>` : ''}`}
         ${H.cfg.remoteView ? `<div class="watchbox"><div id="wqr"></div><div><b>👁 צפייה מרחוק</b><br><span class="lbl">בלי הצבעה</span><br>
           <button class="mb" onclick="navigator.clipboard.writeText('${esc(wurl)}').then(()=>this.textContent='הועתק ✔')">העתקת קישור</button></div></div>` : ''}
       </div>
       <div class="lobby-r">
-        ${slogan('big')}
+        ${H.event ? `<div class="evbrand">${H.event.logo ? `<img src="${H.event.logo}" alt="">` : ''}<h1>${esc(H.event.title || '')}</h1></div>` : slogan('big')}
         <h2>משתתפים: <span id="pcount">0</span>${max}</h2>
         <div class="chips" id="chips"></div>
         <div class="hint" style="color:#fff;opacity:.7;margin-top:10px">לחיצה על שם מוציאה את המשתתף מהמשחק</div>
@@ -1200,7 +1570,7 @@ function renderLobby() {
     </div>
     <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="nextQ()" disabled>התחלת המשחק ▶</button></div>
   </div>`;
-  try { new QRCode($('qr'), { text: url, width: 230, height: 230 }); } catch (e) {}
+  if ($('qr')) try { new QRCode($('qr'), { text: url, width: 230, height: 230 }); } catch (e) {}
   if (H.cfg.remoteView) try { new QRCode($('wqr'), { text: wurl, width: 90, height: 90 }); } catch (e) {}
   onPlayers();
 }
@@ -1426,6 +1796,7 @@ function saveRun(finished) {
     players: sortedPlayers().map(([pid, p]) => ({ name: p.name, score: p.score || 0, correct: (H.pstat[pid] || {}).correct || 0, answered: (H.pstat[pid] || {}).answered || 0, of: scored })),
     questions: H.qStats.filter(Boolean)
   };
+  if (H.event) { DB.set(`events/${H.event.code}/runs/${H.runId}`, rec).catch(() => {}); return; }
   const runs = loadRuns(), i = runs.findIndex(r => r.id === rec.id);
   if (i >= 0) runs[i] = rec; else runs.unshift(rec);
   try { localStorage.setItem(RUNS_KEY, JSON.stringify(runs.slice(0, 300))); } catch (e) {}
@@ -1447,7 +1818,7 @@ async function finish() {
     <div class="board" style="text-align:center"><h2>🏆 המנצחים 🏆</h2></div>
     <div class="podium">${pod(1, 200, '#c0c0c0')}${pod(0, 280, '#ffcc00')}${pod(2, 140, '#cd7f32')}</div>
     ${rest}` : `<div class="board" style="text-align:center;flex:1"><h2>🎉 המשחק נגמר!</h2><div style="font-size:26px">תודה לכל המשתתפים</div></div>`}
-    <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="endHost()">סיום וחזרה למסך הראשי</button></div>
+    <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="endHost()">${H.onExit ? 'סיום' : 'סיום וחזרה למסך הראשי'}</button></div>
   </div>`;
   confetti();
   [523, 659, 784, 1046].forEach((f, k) => setTimeout(() => beep(f, .25, 'triangle', .15), k * 160));
@@ -1504,6 +1875,7 @@ async function pJoin(auto) {
   const pid = same ? sess.pid : rid();
   const existing = await DB.get(`games/${code}/players/${pid}`);
   const cfg = meta.cfg || {};
+  if (cfg.joinMode === 'clickers') return err('במשחק הזה משחקים עם השלטים, בלי טלפונים');
   if (!existing) {
     if (cfg.lateJoin === false && meta.state !== 'lobby') return err('המשחק כבר התחיל, אי אפשר להצטרף באמצע');
     if (cfg.maxPlayers > 0 && Object.keys((await DB.get(`games/${code}/players`)) || {}).length >= cfg.maxPlayers) return err('המשחק מלא');
@@ -1650,8 +2022,15 @@ $('eq').innerHTML = Array.from({ length: 48 }, () => `<i style="animation-delay:
       if (meta && meta.state !== 'end' && meta.created === sess.created) return pJoin({ code: sess.code, name: sess.name });
     }
     playerJoinScreen(code);
+  } else if (params.has('event')) {
+    renderEventPage(params.get('event') || '');
   } else {
     renderHome();
+    if (ONLINE) firebase.auth().onAuthStateChanged(u => {
+      ADMIN = u; AUTH_READY = true;
+      if (u && u.email !== ADMIN_EMAIL) { firebase.auth().signOut(); return renderLogin(`החשבון ${u.email} לא מורשה לאזור הניהול`); }
+      if (!H && !editing) renderHome();
+    });
   }
 })();
 </script>
