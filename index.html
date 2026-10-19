@@ -217,6 +217,7 @@ body.admin .set.ev::before{background:linear-gradient(90deg,#25BDF0,#1fb86a)}
 .evbrand img{max-height:120px;max-width:260px;background:#fff;border-radius:14px;padding:6px}
 .evbrand h1{margin:0;font-size:42px;font-weight:900;line-height:1.1}
 .clickonly{padding:30px 10px}
+.pbook{width:100%;box-sizing:border-box;font:inherit;font-size:15px;border:1px solid #dfe6ea;border-radius:10px;padding:10px;margin:8px 0;resize:vertical}
 .callbox .tel{font-size:46px;font-weight:900;color:var(--bg2);direction:ltr;line-height:1.15;white-space:nowrap;margin:6px 0}
 .callbox.big .tel{font-size:72px}
 .callbox.big{padding:10px 6px 4px}
@@ -660,6 +661,33 @@ const JOIN_MODES = { callapp: 'שיחת טלפון + אפליקציה', app: 'א
 const OLD_JOIN = { mixed: 'callapp', phones: 'app', clickers: 'callapp' };
 const normJoin = m => JOIN_MODES[m] && m !== 'clickers' ? m : (OLD_JOIN[m] || 'callapp');
 const joinOpts = cur => Object.entries(JOIN_MODES).map(([k, t]) => `<option value="${k}" ${cur === k ? 'selected' : ''} ${k === 'clickers' ? 'disabled' : ''}>${t}</option>`).join('');
+// טלפונים מוכרים: שורה לכל משתתף — שם וטלפון בכל סדר (אפשר להדביק מאקסל)
+const normPhone = d => { d = String(d || '').replace(/\D/g, ''); if (d.startsWith('972')) d = '0' + d.slice(3); return /^0\d{8,9}$/.test(d) ? d : ''; };
+function parsePhonebook(text) {
+  const ok = [], bad = [];
+  String(text || '').split(/\r?\n/).forEach(line => {
+    if (!line.trim()) return;
+    const m = line.match(/\+?[\d][\d\s\-]{7,15}\d/);
+    const phone = m ? normPhone(m[0]) : '';
+    const name = (m ? line.replace(m[0], ' ') : line).replace(/[\t,;|]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (phone && name) ok.push({ phone, name: name.slice(0, 30) }); else bad.push(line.trim());
+  });
+  return { ok, bad };
+}
+// המפתח בענן הוא גיבוב של המספר — כך המספרים עצמם לא נשמרים במשחק
+async function phoneKey(phone) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('trivia:' + phone));
+  return [...new Uint8Array(b)].slice(0, 10).map(x => x.toString(16).padStart(2, '0')).join('');
+}
+function phonebookHtml(c) {
+  const { ok, bad } = parsePhonebook(c.phonebook);
+  return `<div class="scard wide">
+      <h3>📞 טלפונים מוכרים</h3>
+      <div class="hint">מי שמתקשר ממספר שברשימה יופיע על המסך בשם שלו (במקום ארבע ספרות אחרונות). שורה לכל משתתף: שם וטלפון. אפשר להעתיק שתי עמודות מאקסל ולהדביק כאן.</div>
+      <textarea class="pbook" rows="6" dir="rtl" placeholder="משה כהן  050-1234567&#10;שרה לוי  052-7654321" oninput="editing.settings.phonebook=this.value" onchange="renderEditor()">${esc(c.phonebook || '')}</textarea>
+      <div class="hint">${ok.length ? `✔ זוהו ${ok.length} משתתפים` : 'הרשימה ריקה'}${bad.length ? ` · <b style="color:#c0392b">${bad.length} שורות לא זוהו:</b> ${bad.slice(0, 5).map(esc).join(' | ')}${bad.length > 5 ? ' …' : ''}` : ''}</div>
+    </div>`;
+}
 const getSettings = set => { const c = { ...DEFAULT_SETTINGS, ...((set && set.settings) || {}) }; c.joinMode = normJoin(c.joinMode); return c; };
 
 /* ====================== מסך ראשי ====================== */
@@ -861,6 +889,7 @@ function settingsHtml() {
         ${tog('showStreak', 'הצג רצף תשובות נכונות')}${tog('autoNext', 'עבור אוטומטית לשאלה הבאה')}
       </div>
     </div>
+    ${c.joinMode === 'call' || c.joinMode === 'callapp' ? phonebookHtml(c) : ''}
     <div class="scard wide">
       <h3>צפייה מרחוק</h3>
       ${tog('remoteView', 'אפשר צפייה מרחוק בהפעלה')}
@@ -1514,6 +1543,12 @@ async function startSet(set, opts = {}) {
     state: 'lobby', title: set.title, total: qs.length, created: DB.now(), remoteView: !!cfg.remoteView,
     cfg: { maxPlayers: cfg.maxPlayers, lateJoin: cfg.lateJoin, feedback: cfg.showAnswersPhone, streak: cfg.showStreak, scoring: cfg.scoring, theme: cfg.theme, icons: cfg.djIcons, joinMode: cfg.joinMode }
   });
+  const pb = parsePhonebook(cfg.phonebook).ok;
+  if (pb.length && cfg.joinMode !== 'app') {
+    const map = {};
+    for (const x of pb) map[await phoneKey(x.phone)] = x.name;
+    await DB.set(gp('phonebook'), map);
+  }
   H.unsubP = DB.on(gp('players'), v => { H.players = v || {}; onPlayers(); });
   window.onkeydown = e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;

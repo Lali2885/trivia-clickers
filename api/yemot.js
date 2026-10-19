@@ -3,6 +3,7 @@
 // פרמטרים שאנחנו מבקשים: G1,G2.. = קוד משחק; A{n}_{t}_{q} = הקשה מספר n,
 // t = עד איזו שאלה כבר הודענו תוצאה (i+1), q = עד איזו שאלה כבר הודענו "שאלה פתוחה" (i+1).
 
+const crypto = require('crypto');
 const DB_URL = 'https://trivia-clickers-default-rtdb.europe-west1.firebasedatabase.app';
 const WAIT = 8;          // שניות המתנה להקשה לפני שבודקים שוב מה המצב במשחק
 const GRACE = 1500;      // מרווח קטן אחרי שהזמן נגמר (עיכוב בקו)
@@ -65,9 +66,13 @@ async function handle(p) {
     if (!existing) {
       if (cfg.lateJoin === false && meta.state !== 'lobby') return bye(['המשחק כבר התחיל ואי אפשר להצטרף באמצע']);
       if (cfg.maxPlayers > 0 && Object.keys((await db(`games/${code}/players`, 'GET')) || {}).length >= cfg.maxPlayers) return bye(['המשחק מלא']);
-      await db(`games/${code}/players/${pid}`, 'PATCH', { name, score: 0, joined: { '.sv': 'timestamp' } });
     }
-    const intro = ['נכנסתם למשחק', phone ? `על המסך תופיעו בשם טלפון ${phone.slice(-4).split('').join(' ')}` : '',
+    // טלפונים מוכרים — השם מהרשימה שהוזנה מראש (המפתח הוא גיבוב של המספר, כמו בדף המנחה)
+    let known = null;
+    const local = phone.startsWith('972') ? '0' + phone.slice(3) : phone;
+    if (local) known = await db(`games/${code}/phonebook/${crypto.createHash('sha256').update('trivia:' + local).digest('hex').slice(0, 20)}`);
+    if (!existing || known) await db(`games/${code}/players/${pid}`, 'PATCH', existing ? { name: '📞 ' + known } : { name: known ? '📞 ' + known : name, score: 0, joined: { '.sv': 'timestamp' } });
+    const intro = [known ? `שלום ${known}` : '', 'נכנסתם למשחק', known ? '' : phone ? `על המסך תופיעו בשם טלפון ${phone.slice(-4).split('').join(' ')}` : '',
       'כשמופיעה שאלה על המסך הקישו את מספר התשובה', 'אחת שתיים שלוש או ארבע', 'אפשר להישאר על הקו עד סוף המשחק'];
     return read(msgs(intro), 'A1_0_0');
   }
