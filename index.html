@@ -217,6 +217,10 @@ body.admin .set.ev::before{background:linear-gradient(90deg,#25BDF0,#1fb86a)}
 .evbrand img{max-height:120px;max-width:260px;background:#fff;border-radius:14px;padding:6px}
 .evbrand h1{margin:0;font-size:42px;font-weight:900;line-height:1.1}
 .clickonly{padding:30px 10px}
+#cloudst{position:fixed;bottom:12px;left:12px;z-index:50;background:#e3f7ec;color:#13824b;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+body:not(.admin) #cloudst{display:none}
+#cloudst.busy{background:#fff4d6;color:#8a6200}
+#cloudst.bad{background:#fde8e6;color:#c0392b}
 .pbook{width:100%;box-sizing:border-box;font:inherit;font-size:15px;border:1px solid #dfe6ea;border-radius:10px;padding:10px;margin:8px 0;resize:vertical}
 .callbox .tel{font-size:46px;font-weight:900;color:var(--bg2);direction:ltr;line-height:1.15;white-space:nowrap;margin:6px 0}
 .callbox.big .tel{font-size:72px}
@@ -537,16 +541,26 @@ const Media = {
       r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
     }));
   },
-  async put(blob) {
-    const id = rid(), db = await this.open();
+  async store(id, blob) {
+    const db = await this.open();
     await new Promise((res, rej) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(blob, id); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+  },
+  async put(blob) {
+    const id = rid();
+    await this.store(id, blob);
+    if (Cloud.on) Cloud.uploadMedia(id);
     return 'idb:' + id;
+  },
+  async localBlob(id) {
+    const db = await this.open();
+    return new Promise(res => { const r = db.transaction('files').objectStore('files').get(id); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); });
   },
   async url(src) {
     if (!String(src).startsWith('idb:')) return src;
     if (this.cache[src]) return this.cache[src];
-    const db = await this.open();
-    const blob = await new Promise(res => { const r = db.transaction('files').objectStore('files').get(src.slice(4)); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
+    const id = src.slice(4);
+    // לא נמצא במחשב הזה → מורידים מהענן (ונשמר מקומית לפעם הבאה)
+    const blob = (await this.localBlob(id)) || (await Cloud.fetchMedia(id).catch(() => null));
     return blob ? (this.cache[src] = URL.createObjectURL(blob)) : '';
   }
 };
@@ -620,13 +634,100 @@ const BANK = [
   ]},
 ];
 
-/* ====================== שמירת משחקים (במחשב) ====================== */
+/* ====================== שמירת משחקים (במחשב + גיבוי וסנכרון בענן) ====================== */
 const SETS_KEY = 'trivia_sets';
 function loadSets() {
   try { const s = JSON.parse(localStorage.getItem(SETS_KEY)); if (Array.isArray(s)) return s; } catch (e) {}
-  const s = JSON.parse(JSON.stringify(BANK)); saveSets(s); return s;
+  const s = JSON.parse(JSON.stringify(BANK)); localStorage.setItem(SETS_KEY, JSON.stringify(s)); return s;
 }
-function saveSets(s) { localStorage.setItem(SETS_KEY, JSON.stringify(s)); }
+const sameRec = (a, b) => !!a && !!b && JSON.stringify({ ...a, updatedAt: 0 }) === JSON.stringify({ ...b, updatedAt: 0 });
+// שומר במחשב, ומה שהשתנה / נמחק נשלח לענן (אם מחוברים)
+function saveSets(s) {
+  const prev = loadSets(), now = Date.now();
+  s.forEach(x => { const p = prev.find(y => y.id === x.id); if (!sameRec(x, p)) { x.updatedAt = now; Cloud.put('sets', x); } });
+  prev.forEach(p => { if (!s.some(x => x.id === p.id)) Cloud.del('sets', p.id, now); });
+  localStorage.setItem(SETS_KEY, JSON.stringify(s));
+}
+
+/* ---- ענן: admin/sets, admin/runs (רשומה = {updatedAt, deleted, json}), admin/media (קבצים בחלקים) ---- */
+const Cloud = {
+  on: false, busy: 0, unsub: [],
+  put(kind, rec) {
+    if (!this.on) return;
+    this.track(DB.set(`admin/${kind}/${rec.id}`, { updatedAt: rec.updatedAt || Date.now(), json: JSON.stringify(rec) }));
+    if (kind === 'sets') this.uploadMediaOf([rec]);
+  },
+  del(kind, id, t) { if (this.on) this.track(DB.set(`admin/${kind}/${id}`, { updatedAt: t || Date.now(), deleted: true })); },
+  track(pr) { this.busy++; this.status(); return Promise.resolve(pr).catch(e => { console.error(e); this.err = true; }).finally(() => { this.busy--; this.status(); }); },
+  status() {
+    let el = $('cloudst');
+    if (!this.on) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'cloudst'; document.body.appendChild(el); }
+    el.className = this.err ? 'bad' : this.busy ? 'busy' : '';
+    el.textContent = this.err ? '⚠ בעיה בשמירה בענן' : this.busy ? '☁ שומר בענן…' : '☁ הכול שמור בענן';
+  },
+  // מיזוג: לכל רשומה מנצחת הגרסה העדכנית; מה שקיים רק במחשב עולה לענן
+  merge(kind, cloud, local) {
+    cloud = cloud || {};
+    const out = [], ids = new Set();
+    const pick = (id, l) => {
+      ids.add(id);
+      const c = cloud[id];
+      if (c && (!l || (c.updatedAt || 0) >= (l.updatedAt || 0))) { if (!c.deleted) try { out.push(JSON.parse(c.json)); } catch (e) {} }
+      else if (l) { out.push(l); if (!l.updatedAt) l.updatedAt = 1; this.put(kind, l); }
+    };
+    local.forEach(l => pick(l.id, l));
+    Object.keys(cloud).forEach(id => { if (!ids.has(id)) pick(id, null); });
+    return out;
+  },
+  start() {
+    if (!ONLINE || this.on) return;
+    this.on = true; this.err = false; this.status();
+    let first = true;
+    this.unsub.push(DB.on('admin/sets', v => {
+      const before = localStorage.getItem(SETS_KEY);
+      const merged = this.merge('sets', v, loadSets());
+      localStorage.setItem(SETS_KEY, JSON.stringify(merged));
+      if (first) { first = false; this.uploadMediaOf(merged); }
+      if (before !== JSON.stringify(merged) && !H && !editing) renderHome();
+    }));
+    this.unsub.push(DB.on('admin/runs', v => {
+      const merged = this.merge('runs', v, loadRuns()).sort((a, b) => (b.date || 0) - (a.date || 0));
+      try { localStorage.setItem(RUNS_KEY, JSON.stringify(merged.slice(0, 300))); } catch (e) {}
+    }));
+  },
+  stop() { this.unsub.forEach(f => f()); this.unsub = []; this.on = false; this.status(); },
+  // קבצי מדיה שנשמרו במחשב (idb:) — עולים לענן כדי שיופיעו גם במחשב אחר
+  MAX: 60 * 1024 * 1024, CHUNK: 3 * 1024 * 1024,
+  mediaIds(sets) {
+    const ids = new Set(), add = m => { if (m && String(m.src).startsWith('idb:')) ids.add(m.src.slice(4)); };
+    sets.forEach(x => { (x.questions || []).forEach(q => { add(q.media); (q.amedia || []).forEach(add); }); add(x.settings && x.settings.musicFile); });
+    return [...ids];
+  },
+  uploadMediaOf(sets) { if (this.on) this.mediaIds(sets).forEach(id => this.uploadMedia(id)); },
+  uploading: {},
+  uploadMedia(id) {
+    if (this.uploading[id]) return this.uploading[id];
+    return this.uploading[id] = this.track((async () => {
+      if (await DB.get(`admin/media/${id}/info`)) return;
+      const blob = await Media.localBlob(id);
+      if (!blob || blob.size > this.MAX) return;
+      const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+      const n = Math.ceil(data.length / this.CHUNK);
+      for (let i = 0; i < n; i++) await DB.set(`admin/media/${id}/c/${i}`, data.slice(i * this.CHUNK, (i + 1) * this.CHUNK));
+      await DB.set(`admin/media/${id}/info`, { n, type: blob.type || '', size: blob.size });
+    })());
+  },
+  async fetchMedia(id) {
+    if (!this.on) return null;
+    const info = await DB.get(`admin/media/${id}/info`); if (!info) return null;
+    let data = '';
+    for (let i = 0; i < info.n; i++) data += (await DB.get(`admin/media/${id}/c/${i}`)) || '';
+    const blob = await (await fetch(data)).blob();
+    await Media.store(id, blob);
+    return blob;
+  }
+};
 function joinBase() { return location.href.split('?')[0].split('#')[0]; }
 
 // מנקה שאלות לפני משחק: מוריד תשובות ריקות (בלי טקסט ובלי תמונה) ומעדכן את אינדקס התשובה הנכונה
@@ -1097,6 +1198,7 @@ function delRun(id) {
     editing.runs = editing.runs.filter(r => r.id !== id); return renderEditor();
   }
   localStorage.setItem(RUNS_KEY, JSON.stringify(loadRuns().filter(r => r.id !== id)));
+  Cloud.del('runs', id);
   renderEditor();
 }
 
@@ -1853,8 +1955,10 @@ function saveRun(finished) {
   };
   if (H.event) { DB.set(`events/${H.event.code}/runs/${H.runId}`, rec).catch(() => {}); return; }
   const runs = loadRuns(), i = runs.findIndex(r => r.id === rec.id);
+  rec.updatedAt = Date.now();
   if (i >= 0) runs[i] = rec; else runs.unshift(rec);
   try { localStorage.setItem(RUNS_KEY, JSON.stringify(runs.slice(0, 300))); } catch (e) {}
+  Cloud.put('runs', rec);
 }
 
 async function finish() {
@@ -2086,6 +2190,7 @@ $('eq').innerHTML = Array.from({ length: 48 }, () => `<i style="animation-delay:
     if (ONLINE) firebase.auth().onAuthStateChanged(u => {
       ADMIN = u; AUTH_READY = true;
       if (u && u.email !== ADMIN_EMAIL) { firebase.auth().signOut(); return renderLogin(`החשבון ${u.email} לא מורשה לאזור הניהול`); }
+      if (u) Cloud.start(); else Cloud.stop();
       if (!H && !editing) renderHome();
     });
   }
