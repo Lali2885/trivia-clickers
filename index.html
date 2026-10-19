@@ -217,6 +217,12 @@ body.admin .set.ev::before{background:linear-gradient(90deg,#25BDF0,#1fb86a)}
 .evbrand img{max-height:120px;max-width:260px;background:#fff;border-radius:14px;padding:6px}
 .evbrand h1{margin:0;font-size:42px;font-weight:900;line-height:1.1}
 .clickonly{padding:30px 10px}
+.callbox .tel{font-size:46px;font-weight:900;color:var(--bg2);direction:ltr;line-height:1.15;white-space:nowrap;margin:6px 0}
+.callbox.big .tel{font-size:72px}
+.callbox.big{padding:10px 6px 4px}
+.jboth{display:flex;gap:22px;align-items:center;justify-content:center}
+.jboth .jcol{flex:1}
+.jboth .jcol + .jcol{border-inline-start:2px dashed #dfe6ea;padding-inline-start:22px}
 .clickonly .big{font-size:80px}
 .clickonly h2{color:var(--ink);margin:10px 0}
 .slogan{display:none}
@@ -642,13 +648,19 @@ const qType = q => q.poll ? 'poll' : q.tf ? 'tf' : 'mc';
 
 /* ====================== הגדרות משחק ====================== */
 const DEFAULT_SETTINGS = {
-  theme: 'classic', djIcons: DJ_DEFAULT_ICONS, joinMode: 'mixed', qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
+  theme: 'classic', djIcons: DJ_DEFAULT_ICONS, joinMode: 'callapp', qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
   showAnswersPhone: true, lateJoin: true,
   scoring: 'speed', boardWhen: 'each', boardEvery: 3, resultsSec: 10,
   showCorrect: true, showFastest: true, showBoard: true, showRankChange: true, showStreak: true, autoNext: false,
   remoteView: false
 };
-const getSettings = set => ({ ...DEFAULT_SETTINGS, ...((set && set.settings) || {}) });
+// מי משתתף: callapp = שיחה + אפליקציה, app = אפליקציה בלבד, call = שיחה בלבד, clickers = קליקרים (עוד לא פעיל)
+const PHONE_LINE = '077-2290994';
+const JOIN_MODES = { callapp: 'שיחת טלפון + אפליקציה', app: 'אפליקציה בלבד (סמארטפון)', call: 'שיחת טלפון בלבד', clickers: 'קליקרים (בקרוב — עוד לא פעיל)' };
+const OLD_JOIN = { mixed: 'callapp', phones: 'app', clickers: 'callapp' };
+const normJoin = m => JOIN_MODES[m] && m !== 'clickers' ? m : (OLD_JOIN[m] || 'callapp');
+const joinOpts = cur => Object.entries(JOIN_MODES).map(([k, t]) => `<option value="${k}" ${cur === k ? 'selected' : ''} ${k === 'clickers' ? 'disabled' : ''}>${t}</option>`).join('');
+const getSettings = set => { const c = { ...DEFAULT_SETTINGS, ...((set && set.settings) || {}) }; c.joinMode = normJoin(c.joinMode); return c; };
 
 /* ====================== מסך ראשי ====================== */
 function showBanner() {
@@ -833,7 +845,7 @@ function settingsHtml() {
       </div>
       ${c.theme === 'dj' ? iconPickerHtml(c) : ''}
       ${c.music === 'file' ? `<div class="mrow">${c.musicFile ? `🎵 ${esc(c.musicFile.name || 'קובץ מוזיקה')} <button class="mb" onclick="setS('musicFile',null,true)">הסרה</button>` : `<button class="mb" onclick="$('afile').click()">בחירת קובץ מוזיקה מהמחשב</button>`}<input type="file" id="afile" accept="audio/*" hidden onchange="musicPicked(this)"></div>` : ''}
-      <div class="frow" style="margin-top:12px">${sel('joinMode', 'מי משתתף', [['mixed', 'טלפונים וקליקרים'], ['phones', 'טלפונים בלבד'], ['clickers', 'קליקרים בלבד']])}</div>
+      <div class="frow" style="margin-top:12px"><label class="fld"><span>מי משתתף</span><select onchange="setS('joinMode',this.value,true)">${joinOpts(c.joinMode)}</select></label></div>
       <div class="togs">${tog('showAnswersPhone', 'להראות למשתתפים בטלפון אם צדקו')}${tog('lateJoin', 'אפשר הצטרפות מאוחרת')}</div>
     </div>
     <div class="scard">
@@ -1155,7 +1167,6 @@ function evStatus(e) {
 const fmtD = d => d ? d.split('-').reverse().join('.') : '';
 const evDates = e => e.from || e.to ? (e.from === e.to || !e.to ? fmtD(e.from) : `${fmtD(e.from) || '…'} – ${fmtD(e.to) || '…'}`) : 'ללא הגבלת תאריך';
 const evLink = code => joinBase() + '?event=' + code;
-const JOIN_MODES = { mixed: 'טלפונים וקליקרים', phones: 'טלפונים בלבד', clickers: 'קליקרים בלבד' };
 
 async function renderEventsBody() {
   const box = $('homebody'); if (!box) return;
@@ -1198,7 +1209,7 @@ function eventToEditing(e, isNew) {
   editing = {
     id: 'ev-' + e.code, isEvent: true, isNew, title: e.title || '',
     questions: (e.questions || []).map(q => q.tf ? q : { ...q, answers: [0, 1, 2, 3].map(j => (q.answers || [])[j] || ''), amedia: [0, 1, 2, 3].map(j => (q.amedia || [])[j] || null) }),
-    settings: { ...DEFAULT_SETTINGS, ...(e.settings || {}) },
+    settings: getSettings(e),
     ev: { code: e.code, origCode: isNew ? null : e.code, client: e.client || '', from: e.from || '', to: e.to || '', logo: e.logo || null },
     runs: Object.values(e.runs || {}).map(r => ({ ...r, players: r.players || [], questions: (r.questions || []).map(q => ({ ...q, answers: q.answers || [], counts: q.counts || [] })) })).sort((a, b) => b.date - a.date),
     tab: isNew ? 'ev' : 'q'
@@ -1239,7 +1250,7 @@ function evHtml() {
         <label class="fld"><span>עד תאריך</span><input type="date" value="${v.to}" onchange="editing.ev.to=this.value"><small>אחרי התאריך הקוד מפסיק לעבוד</small></label>
       </div>
       <div class="frow">
-        <label class="fld"><span>מי משתתף באירוע</span><select onchange="editing.settings.joinMode=this.value">${Object.entries(JOIN_MODES).map(([k, t]) => `<option value="${k}" ${editing.settings.joinMode === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <label class="fld"><span>מי משתתף באירוע</span><select onchange="editing.settings.joinMode=this.value">${joinOpts(editing.settings.joinMode)}</select></label>
       </div>
       <div class="fld"><span>לוגו / תמונה של הלקוח (יופיע במסך הפתיחה)</span></div>
       <div class="mrow">${v.logo ? `<img class="evlogo" src="${v.logo}" alt=""><button class="mb" onclick="editing.ev.logo=null;renderEditor()">הסרה</button>` : ''}<button class="mb" onclick="$('logofile').click()">🖼 ${v.logo ? 'החלפה' : 'בחירת תמונה'}</button>
@@ -1392,7 +1403,7 @@ async function renderEventPage(code) {
     return;
   }
   const st = evStatus(e), n = normQs(e.questions).length;
-  const jm = (e.settings && e.settings.joinMode) || 'mixed';
+  const jm = normJoin(e.settings && e.settings.joinMode);
   app.innerHTML = shell(`
     <div class="lg-card evpage">
       ${e.logo ? `<img class="evpage-logo" src="${e.logo}" alt="">` : ''}
@@ -1543,6 +1554,21 @@ function endHost() {
   renderHome();
 }
 
+function lobbyJoinHtml(url) {
+  const m = H.cfg.joinMode;
+  if (m === 'clickers') return `<div class="clickonly"><div class="big">🎛</div><h2>משחקים עם השלטים</h2><div class="lbl">כל אחד לוחץ על המספר של התשובה בשלט שלו</div></div>`;
+  const call = `<div class="callbox"><div class="lbl">📞 מתקשרים מכל טלפון</div><div class="tel">${PHONE_LINE}</div><div class="lbl">ומקישים את הקוד</div></div>`;
+  const app = `<div class="lbl">📱 סורקים את הקוד עם המצלמה</div><div id="qr"></div>`;
+  const code = `<div class="code">${H.code}</div>`;
+  const site = `<div class="lbl">או נכנסים לאתר ומקלידים את הקוד</div>${code}<div class="url">${esc(joinBase())}?play</div>
+    ${!ONLINE ? `<p><a href="${esc(url)}" target="_blank" style="color:var(--bg2);font-weight:700">פתיחת חלון משתתף לבדיקה ↗</a></p>` : ''}`;
+  if (m === 'call') return `<div class="callbox big"><div class="lbl">📞 מתקשרים מכל טלפון</div><div class="tel">${PHONE_LINE}</div><div class="lbl">ומקישים את קוד המשחק</div></div>${code}`;
+  if (m === 'app') return app + site;
+  return `<div class="jboth"><div class="jcol">${app}<div class="url">${esc(joinBase())}?play</div></div><div class="jcol">${call}</div></div>
+    <div class="lbl">קוד המשחק</div>${code}
+    ${!ONLINE ? `<p><a href="${esc(url)}" target="_blank" style="color:var(--bg2);font-weight:700">פתיחת חלון משתתף לבדיקה ↗</a></p>` : ''}`;
+}
+
 function renderLobby() {
   const url = joinBase() + '?join=' + H.code, wurl = joinBase() + '?watch=' + H.code;
   const max = H.cfg.maxPlayers > 0 ? ` / ${H.cfg.maxPlayers}` : '';
@@ -1551,13 +1577,7 @@ function renderLobby() {
     <div class="lobby">
       <div class="joinbox">
         ${djLogo()}
-        ${H.cfg.joinMode === 'clickers' ? `<div class="clickonly"><div class="big">🎛</div><h2>משחקים עם השלטים</h2><div class="lbl">כל אחד לוחץ על המספר של התשובה בשלט שלו</div></div>` : `
-        <div class="lbl">סורקים את הקוד עם המצלמה</div>
-        <div id="qr"></div>
-        <div class="lbl">או נכנסים לאתר ומקלידים את הקוד</div>
-        <div class="code">${H.code}</div>
-        <div class="url">${esc(joinBase())}?play</div>
-        ${!ONLINE ? `<p><a href="${esc(url)}" target="_blank" style="color:var(--bg2);font-weight:700">פתיחת חלון משתתף לבדיקה ↗</a></p>` : ''}`}
+        ${lobbyJoinHtml(url)}
         ${H.cfg.remoteView ? `<div class="watchbox"><div id="wqr"></div><div><b>👁 צפייה מרחוק</b><br><span class="lbl">בלי הצבעה</span><br>
           <button class="mb" onclick="navigator.clipboard.writeText('${esc(wurl)}').then(()=>this.textContent='הועתק ✔')">העתקת קישור</button></div></div>` : ''}
       </div>
@@ -1875,6 +1895,8 @@ async function pJoin(auto) {
   const pid = same ? sess.pid : rid();
   const existing = await DB.get(`games/${code}/players/${pid}`);
   const cfg = meta.cfg || {};
+  const jm = normJoin(cfg.joinMode);
+  if (jm === 'call') return err(`המשחק הזה בשיחת טלפון בלבד — חייגו ל-${PHONE_LINE} והקישו את הקוד`);
   if (cfg.joinMode === 'clickers') return err('במשחק הזה משחקים עם השלטים, בלי טלפונים');
   if (!existing) {
     if (cfg.lateJoin === false && meta.state !== 'lobby') return err('המשחק כבר התחיל, אי אפשר להצטרף באמצע');

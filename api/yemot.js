@@ -60,6 +60,7 @@ async function handle(p) {
   if (!aKeys.length) {
     if (meta.state === 'end') return tryAgain('המשחק הזה כבר הסתיים');
     if (cfg.joinMode === 'clickers') return bye(['במשחק הזה משחקים עם השלטים בלבד']);
+    if (cfg.joinMode === 'app' || cfg.joinMode === 'phones') return bye(['במשחק הזה משחקים רק דרך האפליקציה בסמארטפון', 'סרקו את הקוד שעל המסך']);
     const existing = await db(`games/${code}/players/${pid}`);
     if (!existing) {
       if (cfg.lateJoin === false && meta.state !== 'lobby') return bye(['המשחק כבר התחיל ואי אפשר להצטרף באמצע']);
