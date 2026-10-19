@@ -638,7 +638,7 @@ const BANK = [
 const SETS_KEY = 'trivia_sets';
 function loadSets() {
   try { const s = JSON.parse(localStorage.getItem(SETS_KEY)); if (Array.isArray(s)) return s; } catch (e) {}
-  const s = JSON.parse(JSON.stringify(BANK)); localStorage.setItem(SETS_KEY, JSON.stringify(s)); return s;
+  const s = JSON.parse(JSON.stringify(BANK)).map(x => ({ ...x, updatedAt: 0 })); localStorage.setItem(SETS_KEY, JSON.stringify(s)); return s;
 }
 const sameRec = (a, b) => !!a && !!b && JSON.stringify({ ...a, updatedAt: 0 }) === JSON.stringify({ ...b, updatedAt: 0 });
 // שומר במחשב, ומה שהשתנה / נמחק נשלח לענן (אם מחוברים)
@@ -673,7 +673,10 @@ const Cloud = {
     const pick = (id, l) => {
       ids.add(id);
       const c = cloud[id];
-      if (c && (!l || (c.updatedAt || 0) >= (l.updatedAt || 0))) { if (!c.deleted) try { out.push(JSON.parse(c.json)); } catch (e) {} }
+      let cr = null; try { cr = c && !c.deleted ? JSON.parse(c.json) : null; } catch (e) {}
+      // נתונים ישנים מלפני הסנכרון (בלי updatedAt בכלל) ושונים מהענן — נשמרים ועולים, לא נדרסים
+      if (l && l.updatedAt === undefined && !sameRec(l, cr)) { l.updatedAt = Date.now(); out.push(l); this.put(kind, l); }
+      else if (c && (!l || (c.updatedAt || 0) >= (l.updatedAt || 0))) { if (cr) out.push(cr); }
       else if (l) { out.push(l); if (!l.updatedAt) l.updatedAt = 1; this.put(kind, l); }
     };
     local.forEach(l => pick(l.id, l));
