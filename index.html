@@ -2189,11 +2189,19 @@ $('eq').innerHTML = Array.from({ length: 48 }, () => `<i style="animation-delay:
   } else if (params.has('event')) {
     renderEventPage(params.get('event') || '');
   } else {
+    // ?edit=CODE — פתיחת אירוע ישירות לעריכה (מגיע מ-BeatBooks)
+    let editReq = cleanCode(params.get('edit') || '');
+    if (editReq) HOME_TAB = 'events';
     renderHome();
     if (ONLINE) firebase.auth().onAuthStateChanged(u => {
       ADMIN = u; AUTH_READY = true;
       if (u && u.email !== ADMIN_EMAIL) { firebase.auth().signOut(); return renderLogin(`החשבון ${u.email} לא מורשה לאזור הניהול`); }
       if (u) Cloud.start(); else Cloud.stop();
+      if (u && editReq && !H && !editing) {
+        const c = editReq; editReq = '';
+        history.replaceState(null, '', location.pathname);
+        return openEvent(c);
+      }
       if (!H && !editing) renderHome();
     });
   }
