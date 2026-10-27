@@ -386,6 +386,11 @@ iframe.am.big{aspect-ratio:16/9;width:auto}
 .summary{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .summary span{background:#f1eff8;border-radius:999px;padding:6px 14px;font-size:14px}
 .qcard.flash{outline:4px solid var(--bad)}
+.grip{cursor:grab;font-size:22px;line-height:1;padding:4px 6px;border-radius:6px;color:#90a4ae;user-select:none;touch-action:none}
+.grip:hover{background:#eef2f4;color:#455a64}
+.qcard.dragging{opacity:.45}
+.qcard.dropto{outline:3px dashed #25BDF0;outline-offset:3px}
+.qcard.dropped{outline:3px solid #1fb86a;outline-offset:3px;transition:outline-color .9s}
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
 .kpi{background:#fff;color:var(--ink);border-radius:14px;padding:18px;text-align:center;border-top:4px solid var(--primary)}
 .kpi b{display:block;font-size:34px;font-weight:900;color:var(--bg2)}
@@ -1009,8 +1014,9 @@ function mediaSlot(ref, i, j) {
     (j < 0 ? `<button class="mb" onclick="linkMedia(${i},${j})">🔗 קישור (גם YouTube)</button>` : '');
 }
 function qEditor(q, i) {
-  return `<div class="qcard" id="qc${i}">
+  return `<div class="qcard" id="qc${i}" ondragstart="qDragStart(event,${i})" ondragover="qDragOver(event,${i})" ondrop="qDrop(event,${i})" ondragend="qDragEnd()">
     <div class="qhead">
+      <span class="grip" title="גרירה לשינוי הסדר" onmousedown="this.closest('.qcard').draggable=true" onmouseup="this.closest('.qcard').draggable=false" ontouchstart="qTouchStart(event,${i})">⠿</span>
       <span class="qnum">${i + 1}</span>
       <select onchange="setType(${i},this.value)">
         <option value="mc" ${qType(q) === 'mc' ? 'selected' : ''}>תשובות לבחירה</option>
@@ -1227,6 +1233,49 @@ function delQ(i) { editing.questions.splice(i, 1); if (!editing.questions.length
 function moveQ(i, d) {
   const qs = editing.questions, j = i + d; if (j < 0 || j >= qs.length) return;
   [qs[i], qs[j]] = [qs[j], qs[i]]; renderEditor();
+}
+// גרירת שאלה לשינוי הסדר — תופסים בידית ⠿ (עכבר או מגע) ומשחררים על שאלה אחרת
+let DRAG = null;
+function moveQTo(from, to) {
+  if (from == null || to == null || from === to) return;
+  const qs = editing.questions, [q] = qs.splice(from, 1);
+  qs.splice(to, 0, q); renderEditor();
+  const el = $('qc' + to); if (el) { el.classList.add('dropped'); setTimeout(() => el.classList.remove('dropped'), 900); }
+}
+function qDragStart(e, i) {
+  if (!e.currentTarget.draggable) return e.preventDefault();
+  DRAG = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i));
+  e.currentTarget.classList.add('dragging');
+}
+function qDragOver(e, i) {
+  if (DRAG == null) return;
+  e.preventDefault();
+  document.querySelectorAll('.qcard.dropto').forEach(x => x !== e.currentTarget && x.classList.remove('dropto'));
+  if (i !== DRAG) e.currentTarget.classList.add('dropto');
+}
+function qDrop(e, i) { e.preventDefault(); const from = DRAG; qDragEnd(); moveQTo(from, i); }
+function qDragEnd() {
+  DRAG = null;
+  document.querySelectorAll('.qcard').forEach(x => { x.draggable = false; x.classList.remove('dragging', 'dropto'); });
+}
+function qTouchStart(e, i) {
+  e.preventDefault(); DRAG = i;
+  $('qc' + i).classList.add('dragging');
+  const over = t => { const el = document.elementFromPoint(t.clientX, t.clientY); return el && el.closest('.qcard'); };
+  const move = ev => {
+    ev.preventDefault();
+    const t = ev.touches[0], c = over(t);
+    document.querySelectorAll('.qcard.dropto').forEach(x => x !== c && x.classList.remove('dropto'));
+    if (c && c.id !== 'qc' + i) c.classList.add('dropto');
+    if (t.clientY < 60) window.scrollBy(0, -12); else if (t.clientY > innerHeight - 60) window.scrollBy(0, 12); // גלילה ליד הקצוות
+  };
+  const end = ev => {
+    document.removeEventListener('touchmove', move); document.removeEventListener('touchend', end);
+    const c = over(ev.changedTouches[0]), to = c ? +c.id.slice(2) : null;
+    qDragEnd(); moveQTo(i, to);
+  };
+  document.addEventListener('touchmove', move, { passive: false });
+  document.addEventListener('touchend', end);
 }
 function saveEdit(stay) {
   const s = editing;
