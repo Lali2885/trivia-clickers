@@ -103,6 +103,13 @@ body.theme-dj{--bg:#11171c;--bg2:#263238;--primary:#25BDF0;--bad:#F05235;--ok:#1
 .theme-dj .pwrap .djlogo{width:240px;margin:0 auto}
 .theme-dj .pwrap .logo{display:none}
 .theme-dj .eq{display:flex;position:fixed;left:0;right:0;bottom:0;height:70px;gap:5px;align-items:flex-end;opacity:.22;pointer-events:none;z-index:0;padding:0 6px}
+/* ערכת "לפי הלוגו" — הצבעים מגיעים מ-setTheme כמשתני CSS */
+body.theme-brand:not(.admin){background:radial-gradient(900px 650px at 90% -10%,color-mix(in srgb,var(--brand-c1) 40%,transparent),transparent 60%),radial-gradient(800px 600px at 0% 110%,color-mix(in srgb,var(--brand-c2) 30%,transparent),transparent 60%),linear-gradient(160deg,var(--bg2),var(--brand-bg));background-attachment:fixed}
+body.theme-brand:not(.admin) .btn.primary{background:linear-gradient(90deg,var(--brand-c2),var(--brand-c1))}
+.theme-brand .tbar>div{background:linear-gradient(90deg,var(--brand-c2),var(--brand-c1))}
+.brandlogo{display:block;max-width:260px;max-height:150px;margin:0 auto 12px;background:#fff;border-radius:14px;padding:6px}
+.swatches{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.swatches input[type=color]{width:44px;height:36px;border:1px solid #d9e2e7;border-radius:8px;padding:2px;background:#fff;cursor:pointer}
 
 /* ===== מסכי ניהול — עיצוב בהיר בצבעי המותג ===== */
 body.admin{--a-text:#263238;--a-muted:#6b7c85;--a-card:#fff;--a-line:#e3eaee;
@@ -446,11 +453,77 @@ const THEMES = {
   }
 };
 let THEME = 'classic', COLORS = THEMES.classic.colors, SHAPES = THEMES.classic.shapes, TF_COLORS = THEMES.classic.tf;
-function setTheme(name, icons) {
-  if (!THEMES[name]) name = 'classic';
-  THEME = name; ({ colors: COLORS, shapes: SHAPES, tf: TF_COLORS } = THEMES[name]);
+function setTheme(name, icons, brand) {
+  const isBrand = name === 'brand' && brand && (brand.colors || []).length === 4;
+  if (!isBrand && !THEMES[name]) name = 'classic';
+  if (!isBrand && name === 'brand') name = 'classic';
+  THEME = name;
+  if (isBrand) { COLORS = brand.colors; SHAPES = THEMES.classic.shapes; TF_COLORS = [brand.colors[0], brand.colors[1]]; }
+  else ({ colors: COLORS, shapes: SHAPES, tf: TF_COLORS } = THEMES[name]);
   if (name === 'dj') SHAPES = djShapes(icons);
   document.body.classList.toggle('theme-dj', name === 'dj');
+  document.body.classList.toggle('theme-brand', isBrand);
+  const st = document.body.style;
+  [['--primary', 0], ['--bg2', 'bg2'], ['--brand-bg', 'bg'], ['--brand-c1', 0], ['--brand-c2', 1]].forEach(([v, k]) => {
+    if (isBrand) st.setProperty(v, typeof k === 'number' ? brand.colors[k] : brand[k]); else st.removeProperty(v);
+  });
+}
+
+/* ---- ערכת צבעים לפי לוגו ---- */
+const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const rgb2hex = rgb => '#' + rgb.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+function rgb2hsl([r, g, b]) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+function hsl2hex(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return rgb2hex([r, g, b].map(v => (v + m) * 255));
+}
+// מוציא מהלוגו 4 צבעים לתשובות + צבעי רקע. צבעים בהירים מדי מוכהים כדי שטקסט לבן ייקרא עליהם
+function logoPalette(img) {
+  const N = 64, k = N / Math.max(img.width, img.height);
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+  const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, c.width, c.height);
+  const d = ctx.getImageData(0, 0, c.width, c.height).data, buckets = {};
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 128) continue;
+    const [h, s, l] = rgb2hsl([d[i], d[i + 1], d[i + 2]]);
+    if (l > .92 || l < .08 || s < .18) continue;
+    const key = (d[i] >> 4) + ',' + (d[i + 1] >> 4) + ',' + (d[i + 2] >> 4);
+    const b = buckets[key] = buckets[key] || { n: 0, r: 0, g: 0, b: 0, s };
+    b.n++; b.r += d[i]; b.g += d[i + 1]; b.b += d[i + 2];
+  }
+  const cands = Object.values(buckets).map(b => ({ rgb: [b.r / b.n, b.g / b.n, b.b / b.n], w: b.n * (.4 + b.s) })).sort((a, b) => b.w - a.w);
+  const picked = [];
+  for (const x of cands) {
+    if (picked.length === 4) break;
+    const [h, s] = rgb2hsl(x.rgb);
+    if (picked.every(p => { const dh = Math.abs(p.h - h); return Math.min(dh, 360 - dh) > 28 || Math.abs(p.s - s) > .35; })) picked.push({ h, s });
+  }
+  if (!picked.length) return null; // לוגו בשחור-לבן — אין ממה לקחת צבעים
+  const base = picked[0];
+  const offs = [150, 60, 240];
+  for (let k = 0; picked.length < 4; k++) picked.push({ h: (base.h + offs[k]) % 360, s: Math.max(.55, base.s) });
+  const colors = picked.slice(0, 4).map(p => hsl2hex(p.h, Math.min(.85, Math.max(.5, p.s)), .42));
+  return { colors, bg: hsl2hex(base.h, Math.min(.45, base.s), .14), bg2: hsl2hex(base.h, Math.min(.5, base.s), .26) };
+}
+// קורא קובץ תמונה: מקטין ללוגו (dataURL) ומחזיר גם את ערכת הצבעים שלו
+function readLogo(f, cb) {
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, 500 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const url = f.type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', .85);
+    URL.revokeObjectURL(img.src); cb(url, logoPalette(img));
+  };
+  img.src = URL.createObjectURL(f);
 }
 const slogan = (cls = '') => THEME === 'dj' ? `<span class="slogan ${cls}">תרקדי. תשתחררי. תהני</span>` : '';
 const djLogo = () => THEME === 'dj' ? '<div class="djlogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>' : '';
@@ -897,7 +970,7 @@ const blankQ = () => ({ text: '', answers: ['', '', '', ''], amedia: [null, null
 function renderEditor() {
   const s = editing;
   document.body.classList.add('admin');
-  setTheme(s.settings && s.settings.theme, s.settings && s.settings.djIcons);
+  setTheme(s.settings && s.settings.theme, s.settings && s.settings.djIcons, s.settings && s.settings.brand);
   app.innerHTML = `<div class="wrap">
     <div class="toolbar">
       <button class="btn ghost" onclick="if(editing&&editing.isEvent)HOME_TAB='events';editing=null;renderHome()">→ חזרה בלי לשמור</button>
@@ -988,7 +1061,7 @@ function settingsHtml() {
       <div class="frow">${num('qTime', 'זמן לשאלה (שניות)', 5, 300, 'לשאלות חדשות')}${num('maxPlayers', 'מספר משתתפים מקסימלי', 0, 10000, '0 = ללא הגבלה')}</div>
       <button class="mb" onclick="applyTimeAll()">החלת הזמן על כל השאלות הקיימות</button>
       <div class="frow" style="margin-top:12px">
-        ${sel('theme', 'ערכת עיצוב', [['classic', 'קלאסית (צבעוני)'], ['dj', '🎧 DJ — ללי שטרן']])}
+        ${sel('theme', 'ערכת עיצוב', [['classic', 'קלאסית (צבעוני)'], ['dj', '🎧 DJ — ללי שטרן'], ...(c.brand ? [['brand', '🎨 לפי הלוגו']] : [])])}
         ${sel('music', 'מוזיקת רקע', [['classic', 'מנגינת משחק קלאסית'], ['dj', 'ביט DJ'], ['file', 'קובץ מוזיקה שלי'], ['none', 'ללא מוזיקה']])}
       </div>
       ${c.theme === 'dj' ? iconPickerHtml(c) : ''}
@@ -1009,6 +1082,7 @@ function settingsHtml() {
         ${tog('showStreak', 'הצג רצף תשובות נכונות')}${tog('autoNext', 'עבור אוטומטית לשאלה הבאה')}
       </div>
     </div>
+    ${brandHtml(c)}
     ${c.joinMode === 'call' || c.joinMode === 'callapp' ? phonebookHtml(c) : ''}
     <div class="scard wide">
       <h3>צפייה מרחוק</h3>
@@ -1016,6 +1090,33 @@ function settingsHtml() {
       <div class="hint">יוצר קישור לצפייה בלבד (בלי הצבעה). במסך הפתיחה של המשחק יופיע ברקוד קטן וכפתור להעתקת הקישור, כך שמי שלא נמצא באולם יוכל לראות את השאלות והתוצאות.</div>
     </div>
   </div>`;
+}
+// לוגו של המשחק/האירוע + ערכת צבעים שנלקחת ממנו. באירוע הלוגו נשמר ב-ev.logo, במשחק רגיל ב-settings.logo
+const curLogo = () => editing.isEvent ? editing.ev.logo : editing.settings.logo;
+function brandHtml(c) {
+  const logo = curLogo(), b = c.brand;
+  return `<div class="scard">
+    <h3>🖼 לוגו וצבעים</h3>
+    <div class="mrow">${logo ? `<img class="evlogo" src="${logo}" alt=""><button class="mb" onclick="setLogo(null)">הסרה</button>` : ''}<button class="mb" onclick="$('brandfile').click()">🖼 ${logo ? 'החלפת לוגו' : 'העלאת לוגו'}</button>
+      <input type="file" id="brandfile" accept="image/*" hidden onchange="logoPicked(this)"></div>
+    <div class="hint">הלוגו יופיע במסך הפתיחה, וממנו נלקחים צבעי המשחק (ערכת עיצוב "לפי הלוגו").</div>
+    ${b ? `<div class="swatches"><span>צבעי התשובות:</span>${b.colors.map((x, j) => `<input type="color" value="${x}" title="תשובה ${j + 1}" onchange="setBrandColor(${j},this.value)">`).join('')}
+      ${c.theme !== 'brand' ? `<button class="mb" onclick="setS('theme','brand',true)">החלת הצבעים על המשחק</button>` : '<span class="hint">✔ בשימוש</span>'}</div>` : ''}
+  </div>`;
+}
+function setLogo(url, pal) {
+  if (editing.isEvent) editing.ev.logo = url; else editing.settings.logo = url;
+  const s = editing.settings;
+  if (!url) { s.brand = null; if (s.theme === 'brand') s.theme = 'classic'; }
+  else if (pal) { s.brand = pal; s.theme = 'brand'; }
+  else alert('הלוגו נשמר, אבל לא נמצאו בו צבעים (נראה שהוא בשחור-לבן), אז ערכת העיצוב לא שונתה.');
+  renderEditor();
+}
+function setBrandColor(j, v) {
+  const b = editing.settings.brand = { ...editing.settings.brand, colors: [...editing.settings.brand.colors] };
+  b.colors[j] = v;
+  if (j === 0) { const [h, s] = rgb2hsl(hex2rgb(v)); b.bg = hsl2hex(h, Math.min(.45, s), .14); b.bg2 = hsl2hex(h, Math.min(.5, s), .26); } // הרקע נגזר מהצבע הראשון
+  renderEditor();
 }
 function iconPickerHtml(c) {
   const ic = c.djIcons || DJ_DEFAULT_ICONS, slot = editing.iconSlot;
@@ -1411,9 +1512,10 @@ function evHtml() {
       <div class="frow">
         <label class="fld"><span>מי משתתף באירוע</span><select onchange="editing.settings.joinMode=this.value">${joinOpts(editing.settings.joinMode)}</select></label>
       </div>
-      <div class="fld"><span>לוגו / תמונה של הלקוח (יופיע במסך הפתיחה)</span></div>
-      <div class="mrow">${v.logo ? `<img class="evlogo" src="${v.logo}" alt=""><button class="mb" onclick="editing.ev.logo=null;renderEditor()">הסרה</button>` : ''}<button class="mb" onclick="$('logofile').click()">🖼 ${v.logo ? 'החלפה' : 'בחירת תמונה'}</button>
+      <div class="fld"><span>לוגו / תמונה של הלקוח (יופיע במסך הפתיחה, וצבעי המשחק יילקחו ממנו)</span></div>
+      <div class="mrow">${v.logo ? `<img class="evlogo" src="${v.logo}" alt=""><button class="mb" onclick="setLogo(null)">הסרה</button>` : ''}<button class="mb" onclick="$('logofile').click()">🖼 ${v.logo ? 'החלפה' : 'בחירת תמונה'}</button>
         <input type="file" id="logofile" accept="image/*" hidden onchange="logoPicked(this)"></div>
+      ${v.logo ? '<div class="hint">את הצבעים אפשר לכוונן בלשונית "הגדרות" ← לוגו וצבעים.</div>' : ''}
     </div>
     <div class="scard">
       <h3>🔗 קישור ללקוח</h3>
@@ -1437,15 +1539,7 @@ function evHtml() {
 }
 function logoPicked(inp) {
   const f = inp.files[0]; inp.value = ''; if (!f) return;
-  const img = new Image();
-  img.onload = () => {
-    const k = Math.min(1, 500 / Math.max(img.width, img.height));
-    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    editing.ev.logo = f.type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', .85);
-    URL.revokeObjectURL(img.src); renderEditor();
-  };
-  img.src = URL.createObjectURL(f);
+  readLogo(f, setLogo);
 }
 function padQ(q) { return q.tf ? { ...q } : { ...q, answers: [0, 1, 2, 3].map(j => (q.answers || [])[j] || ''), amedia: [0, 1, 2, 3].map(j => (q.amedia || [])[j] || null) }; }
 function addQuestions(list) {
@@ -1659,7 +1753,7 @@ async function startSet(set, opts = {}) {
   const qs = normQs(set && set.questions);
   if (!qs.length) return alert('אין במשחק הזה שאלות תקינות');
   const cfg = getSettings(set);
-  setTheme(cfg.theme, cfg.djIcons);
+  setTheme(cfg.theme, cfg.djIcons, cfg.brand);
   document.body.classList.remove('admin');
   let code;
   for (let k = 0; k < 25; k++) {
@@ -1668,10 +1762,10 @@ async function startSet(set, opts = {}) {
     if (!ex || DB.now() - (ex.created || 0) > 6 * 3600e3) break;
   }
   await DB.remove(`games/${code}`);
-  H = { code, title: set.title, qs, cfg, qi: -1, players: {}, answers: {}, state: 'lobby', streak: {}, delta: {}, setId: opts.setId || null, event: opts.event || null, onExit: opts.onExit || null, runId: rid(), startedAt: Date.now(), qStats: [], pstat: {} };
+  H = { code, title: set.title, qs, cfg, qi: -1, players: {}, answers: {}, state: 'lobby', streak: {}, delta: {}, setId: opts.setId || null, event: opts.event || null, onExit: opts.onExit || null, logo: (opts.event && opts.event.logo) || cfg.logo || null, runId: rid(), startedAt: Date.now(), qStats: [], pstat: {} };
   await DB.set(gp('meta'), {
     state: 'lobby', title: set.title, total: qs.length, created: DB.now(), remoteView: !!cfg.remoteView,
-    cfg: { maxPlayers: cfg.maxPlayers, lateJoin: cfg.lateJoin, feedback: cfg.showAnswersPhone, streak: cfg.showStreak, scoring: cfg.scoring, theme: cfg.theme, icons: cfg.djIcons, joinMode: cfg.joinMode }
+    cfg: { maxPlayers: cfg.maxPlayers, lateJoin: cfg.lateJoin, feedback: cfg.showAnswersPhone, streak: cfg.showStreak, scoring: cfg.scoring, theme: cfg.theme, icons: cfg.djIcons, brand: cfg.theme === 'brand' ? cfg.brand || null : null, joinMode: cfg.joinMode }
   });
   const pb = parsePhonebook(cfg.phonebook).ok;
   if (pb.length && cfg.joinMode !== 'app') {
@@ -1747,7 +1841,7 @@ function renderLobby() {
           <button class="mb" onclick="navigator.clipboard.writeText('${esc(wurl)}').then(()=>this.textContent='הועתק ✔')">העתקת קישור</button></div></div>` : ''}
       </div>
       <div class="lobby-r">
-        ${H.event ? `<div class="evbrand">${H.event.logo ? `<img src="${H.event.logo}" alt="">` : ''}<h1>${esc(H.event.title || '')}</h1></div>` : slogan('big')}
+        ${H.event || H.logo ? `<div class="evbrand">${H.logo ? `<img src="${H.logo}" alt="">` : ''}<h1>${esc((H.event && H.event.title) || H.title || '')}</h1></div>` : slogan('big')}
         <h2>משתתפים: <span id="pcount">0</span>${max}</h2>
         <div class="chips" id="chips"></div>
         <div class="hint" style="color:#fff;opacity:.7;margin-top:10px">לחיצה על שם מוציאה את המשתתף מהמשחק</div>
@@ -2043,7 +2137,7 @@ function playerJoinScreen(code, err) {
   // אם כבר יודעים את קוד המשחק — מחילים את ערכת העיצוב שלו
   if (code && !THEME_CHECKED[code]) {
     THEME_CHECKED[code] = 1;
-    DB.get(`games/${code}/meta`).then(m => { if (m && m.cfg && m.cfg.theme && m.cfg.theme !== THEME) { setTheme(m.cfg.theme, m.cfg.icons); const n = $('pname') && $('pname').value; playerJoinScreen(code, err); if (n) $('pname').value = n; } });
+    DB.get(`games/${code}/meta`).then(m => { if (m && m.cfg && m.cfg.theme && (m.cfg.theme !== THEME || m.cfg.theme === 'brand')) { setTheme(m.cfg.theme, m.cfg.icons, m.cfg.brand); const n = $('pname') && $('pname').value; playerJoinScreen(code, err); if (n) $('pname').value = n; } });
   }
   $('pname').onkeydown = e => { if (e.key === 'Enter') pJoin(); };
 }
@@ -2085,7 +2179,7 @@ function pTop() {
 function renderPlayer() {
   clearInterval(P.timer);
   const m = P.meta;
-  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons);
+  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons, m && m.cfg && m.cfg.brand);
   if (!m) { PSTORE.removeItem(SESS_KEY); return playerJoinScreen('', 'המשחק נסגר'); }
   let body = '';
   if (m.state === 'lobby') {
@@ -2166,7 +2260,7 @@ function watchTick() {
 }
 function renderWatch() {
   const m = W.meta;
-  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons);
+  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons, m && m.cfg && m.cfg.brand);
   if (!m) { app.innerHTML = `<div class="pwrap"><div class="logo">🎯 טריוויה</div><div class="pbig">המשחק לא נמצא או שהסתיים</div></div>`; return; }
   if (!m.remoteView) { app.innerHTML = `<div class="pwrap"><div class="logo">🎯 טריוויה</div><div class="pbig">צפייה מרחוק לא מופעלת במשחק הזה</div></div>`; return; }
   const rows = list => (list || []).map((p, k) => `<div class="brow"><span><span class="r">${k + 1}</span>${esc(p.name)}</span><span class="side">${p.st >= 2 ? `<span class="streak">🔥${p.st}</span>` : ''}${p.d ? `<span class="delta ${p.d > 0 ? 'up' : 'down'}">${p.d > 0 ? '▲' : '▼'}${Math.abs(p.d)}</span>` : ''}<span>${p.score}</span></span></div>`).join('');
