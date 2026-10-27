@@ -333,6 +333,18 @@ iframe.thumb{width:114px;border:0}
 .qmedia{flex:1;display:flex;justify-content:center;align-items:center;min-height:0}
 .qm{max-height:36vh;max-width:100%;border-radius:12px;display:block;background:#000}
 iframe.qm{width:min(60vw,640px);height:auto;aspect-ratio:16/9;border:0}
+/* שאלה עם תמונה/סרטון: אחרי כמה שניות התמונה גדלה, והשאלה, התשובות והטיימר מתכווצים כדי לפנות לה מקום */
+.stage.hasmedia .qm{transition:max-height .7s ease,width .7s ease}
+.stage.hasmedia .qtext,.stage.hasmedia .ans,.stage.hasmedia .timer{transition:all .6s ease}
+.stage.zoom .qm{max-height:max(36vh,calc(100vh - 390px))}
+.stage.zoom iframe.qm{width:min(88vw,calc((100vh - 390px) * 16 / 9))}
+.stage.zoom .qtext{padding:10px 18px;font-size:clamp(20px,2.6vw,30px);margin:8px 0}
+.stage.zoom .qmid{gap:12px}
+.stage.zoom .timer{width:86px;height:86px;font-size:38px;border-width:4px}
+.stage.zoom .counter b{font-size:38px}
+.stage.zoom .answers{gap:8px}
+.stage.zoom .ans{padding:10px 16px;font-size:clamp(18px,2vw,26px)}
+.stage.zoom .stage-bottom{padding-top:8px}
 .am{height:100px;max-width:180px;object-fit:cover;border-radius:8px;background:rgba(0,0,0,.2);flex:none}
 iframe.am{width:178px;border:0}
 .am.big{height:24vh;max-width:none;width:auto;flex:1;object-fit:contain}
@@ -1073,6 +1085,7 @@ function previewQ(i, reveal) {
     <div class="stage-bottom"><span></span>${slogan()}${q.poll ? '<span></span>' : `<button class="btn ghost" onclick="previewQ(${i},${!reveal})">${reveal ? 'הסתרת התשובה' : 'הצגת התשובה הנכונה ✔'}</button>`}</div>
   </div>`;
   hydrateMedia(app);
+  if (!reveal) mediaZoom(q); else if (q.media) app.querySelector('.stage').classList.add('hasmedia', 'zoom');
   window.scrollTo(0, 0);
 }
 function closePreview() {
@@ -1947,6 +1960,13 @@ function answersHtml(q, revealIdx) {
     </div>`).join('')}</div>`;
 }
 
+// שאלה עם תמונה/סרטון: מציגים קודם רגיל, ואחרי כמה שניות מגדילים את התמונה כדי שיראו אותה טוב
+const mediaZoom = q => {
+  if (!q.media) return;
+  const st = app.querySelector('.stage');
+  st.classList.add('hasmedia');
+  setTimeout(() => st.classList.add('zoom'), 2500);
+};
 function renderQuestion() {
   const q = H.qs[H.qi];
   app.innerHTML = `<div class="stage">
@@ -1962,6 +1982,7 @@ function renderQuestion() {
     <div class="stage-bottom"><span></span>${slogan()}<button class="btn ghost" id="main" onclick="reveal()">${q.poll ? 'לתוצאות הסקר ⏭' : 'דילוג לתשובה ⏭'}</button></div>
   </div>`;
   hydrateMedia(app);
+  mediaZoom(q);
   updCount();
 }
 
