@@ -220,6 +220,11 @@ body.admin .set.ev::before{background:linear-gradient(90deg,#25BDF0,#1fb86a)}
 .evlogo{max-height:70px;max-width:160px;border-radius:8px;border:1px solid #e3eaee;background:#fff}
 .linkbox{background:#f4f7f9;border:1px solid #e3eaee;border-radius:10px;padding:10px 12px;font-size:14px;word-break:break-all}
 .qtools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.durbox{background:#eef7fb;border:1px solid #cde9f4;color:#263238;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:16px}
+.durbox:empty{display:none}
+.durbox b{font-size:20px;color:#127ea6}
+.durbox small{color:#6b7c85;margin-inline-start:6px}
+.durbox .durnote{display:block;margin:4px 0 0;font-size:12px}
 .evbrand{display:flex;align-items:center;gap:18px;margin-bottom:14px}
 .evbrand img{max-height:120px;max-width:260px;background:#fff;border-radius:14px;padding:6px}
 .evbrand h1{margin:0;font-size:42px;font-weight:900;line-height:1.1}
@@ -882,6 +887,26 @@ function phonebookHtml(c) {
       <div class="hint">${ok.length ? `✔ זוהו ${ok.length} משתתפים` : 'הרשימה ריקה'}${bad.length ? ` · <b style="color:#c0392b">${bad.length} שורות לא זוהו:</b> ${bad.slice(0, 5).map(esc).join(' | ')}${bad.length > 5 ? ' …' : ''}` : ''}</div>
     </div>`;
 }
+// זמן התכנית: זמן מענה לכל שאלה + מסך תשובה + טבלת מובילים (לפי ההגדרות). במעבר אוטומטי זה מדויק (במקסימום — אם כולן עונות מהר זה מתקצר);
+// בלי מעבר אוטומטי מניחים בערך 10 שניות לכל מסך שהמפעילה מעבירה ידנית
+function programTime(qs, c) {
+  const step = c.autoNext ? c.resultsSec : 10;
+  let answer = 0, screens = 0, boards = 0;
+  qs.forEach((q, i) => {
+    answer += q.time; screens += step;
+    if (i < qs.length - 1 && !q.poll && (c.boardWhen === 'each' || (c.boardWhen === 'everyN' && (i + 1) % Math.max(1, c.boardEvery) === 0))) { screens += step; boards++; }
+  });
+  return { total: answer + screens, answer, screens, boards, exact: !!c.autoNext };
+}
+const fmtDur = secs => { const m = Math.floor(secs / 60), r = secs % 60; return m ? `${m}:${String(r).padStart(2, '0')} דק'` : `${r} שנ'`; };
+function durHtml() {
+  const qs = normQs(editing.questions), c = getSettings(editing), t = programTime(qs, c);
+  if (!qs.length) return '';
+  return `⏱ זמן התכנית: <b>${t.exact ? '' : 'בערך '}${fmtDur(t.total)}</b>
+    <small>(${qs.length} שאלות · ${fmtDur(t.answer)} זמן מענה · ${fmtDur(t.screens)} מסכי תוצאות${t.boards ? ` ו-${t.boards} טבלאות מובילים` : ''}${t.exact ? `, ${c.resultsSec} שנ' כל מסך` : ''})</small>
+    <small class="durnote">${t.exact ? 'מעבר אוטומטי פעיל — זה הזמן המקסימלי (אם כולן עונות מהר זה מתקצר). לא כולל הצטרפות בתחילת המשחק.' : 'בלי מעבר אוטומטי — הערכה לפי כ-10 שניות לכל מסך. לחישוב מדויק: הגדרות ← "עבור אוטומטית לשאלה הבאה".'}</small>`;
+}
+const updDur = () => { const el = $('durbox'); if (el) el.innerHTML = durHtml(); };
 const getSettings = set => { const c = { ...DEFAULT_SETTINGS, ...((set && set.settings) || {}) }; c.joinMode = normJoin(c.joinMode); return c; };
 
 /* ====================== מסך ראשי ====================== */
@@ -930,7 +955,7 @@ function renderHome() {
     </div>
     <div class="sets">${sets.map(x => {
       const c = getSettings(x), qs = normQs(x.questions), n = runsBySet[x.id] || 0;
-      const mins = Math.max(1, Math.round(qs.reduce((t, q) => t + q.time + 10, 0) / 60));
+      const mins = Math.max(1, Math.round(programTime(qs, c).total / 60));
       return `
       <div class="set ${c.theme === 'dj' ? 'dj' : 'classic'}">
         <div class="sethead">
@@ -1001,7 +1026,7 @@ function renderEditor() {
         `<button class="tab ${(s.tab || 'q') === k ? 'on' : ''}" onclick="editing.tab='${k}';renderEditor()">${t}</button>`).join('')}
     </div>
     ${s.tab === 'ev' ? evHtml() : s.tab === 's' ? settingsHtml() : s.tab === 'a' ? activateHtml() : s.tab === 'st' ? statsHtml() :
-      `<div class="qtools"><button class="mb" onclick="$('cfile').click()">⬆ ייבוא מטופס לקוח (אקסל)</button>${s.isEvent ? '' : '<a class="mb" href="client-form.xlsx" download="טופס שאלות לאירוע.xlsx">⬇ טופס ריק למילוי</a>'}<button class="mb" onclick="shuffleAllAnswers()">🔀 ערבוב תשובות</button></div>` +
+      `<div class="durbox" id="durbox">${durHtml()}</div><div class="qtools"><button class="mb" onclick="$('cfile').click()">⬆ ייבוא מטופס לקוח (אקסל)</button>${s.isEvent ? '' : '<a class="mb" href="client-form.xlsx" download="טופס שאלות לאירוע.xlsx">⬇ טופס ריק למילוי</a>'}<button class="mb" onclick="shuffleAllAnswers()">🔀 ערבוב תשובות</button></div>` +
       s.questions.map(qEditor).join('') + '<button class="btn add" onclick="addQ()">+ הוספת שאלה</button>'}
     <input type="file" id="cfile" accept=".xlsx,.xls" hidden onchange="importClientForm(this)">
     <input type="file" id="mfile" accept="image/*,video/*" hidden onchange="mediaPicked(this)">
@@ -1023,7 +1048,7 @@ function qEditor(q, i) {
         <option value="tf" ${qType(q) === 'tf' ? 'selected' : ''}>נכון / לא נכון</option>
         <option value="poll" ${qType(q) === 'poll' ? 'selected' : ''}>סקר (בלי תשובה נכונה)</option>
       </select>
-      <select onchange="editing.questions[${i}].time=+this.value">
+      <select onchange="editing.questions[${i}].time=+this.value;updDur()">
         ${[...new Set([5, 10, 15, 20, 30, 45, 60, 90, 120, +q.time || 20])].sort((x, y) => x - y).map(t => `<option value="${t}" ${q.time == t ? 'selected' : ''}>${t} שניות</option>`).join('')}
       </select>
       <span class="sp"></span>
@@ -1322,14 +1347,14 @@ function preflight() {
 function activateHtml() {
   const checks = preflight(), blocking = checks.some(c => !c.ok && !c.warn);
   const qs = normQs(editing.questions), c = getSettings(editing);
-  const secs = qs.reduce((t, q) => t + q.time + (c.autoNext ? c.resultsSec : 10), 0);
+  const pt = programTime(qs, c);
   const scoring = { speed: 'דיוק ומהירות', fixed: 'ניקוד קבוע', accuracy: 'דיוק בלבד' }[c.scoring];
   return `<div class="scard">
     <h3>בדיקת טרום הפעלה</h3>
     ${checks.map(x => `<div class="chk ${x.ok ? 'ok' : x.warn ? 'warn' : 'bad'}"><span class="ic">${x.ok ? '✔' : x.warn ? '!' : '✘'}</span>${x.label}${!x.ok && x.detail ? ` <small>${esc(x.detail)}</small>` : ''}</div>`).join('')}
     <div class="summary">
       <span>${qs.length} שאלות${qs.some(q => q.poll) ? ` (${qs.filter(q => q.poll).length} סקרים)` : ''}</span>
-      <span>בערך ${Math.max(1, Math.round(secs / 60))} דקות</span>
+      <span>⏱ ${pt.exact ? '' : 'בערך '}${fmtDur(pt.total)}</span>
       <span>ניקוד: ${scoring}</span>
       <span>${c.maxPlayers > 0 ? `עד ${c.maxPlayers} משתתפים` : 'ללא הגבלת משתתפים'}</span>
       ${c.remoteView ? '<span>👁 צפייה מרחוק פעילה</span>' : ''}
