@@ -1009,6 +1009,7 @@ function qEditor(q, i) {
         ${[...new Set([5, 10, 15, 20, 30, 45, 60, 90, 120, +q.time || 20])].sort((x, y) => x - y).map(t => `<option value="${t}" ${q.time == t ? 'selected' : ''}>${t} שניות</option>`).join('')}
       </select>
       <span class="sp"></span>
+      <button class="ib" title="תצוגה מקדימה במסך הגדול" onclick="previewQ(${i})">👁</button>
       <button class="ib" title="למעלה" onclick="moveQ(${i},-1)">▲</button>
       <button class="ib" title="למטה" onclick="moveQ(${i},1)">▼</button>
       <button class="ib" title="מחיקה" onclick="delQ(${i})">🗑</button>
@@ -1041,6 +1042,50 @@ function shuffleAllAnswers() {
   }
   renderEditor();
 }
+// תצוגה מקדימה של שאלה כמו שתיראה על המסך הגדול במשחק (בלי להפעיל משחק). Esc / ✕ חוזרים לעריכה
+let PV = null;
+function previewQ(i, reveal) {
+  const q = normQs([editing.questions[i]])[0];
+  if (!q) return alert('השאלה עדיין לא מלאה — צריך טקסט, לפחות שתי תשובות ותשובה נכונה מסומנת.');
+  if (!PV) PV = { y: window.scrollY };
+  PV.i = i;
+  const n = editing.questions.length, logo = curLogo();
+  document.body.classList.remove('admin');
+  app.innerHTML = `<div class="stage">
+    <div class="stage-top">
+      <span style="display:flex;gap:10px;align-items:center">${logo ? `<img src="${logo}" alt="" style="height:44px;background:#fff;border-radius:8px;padding:3px">` : djLogo()}<span class="pill">${esc(editing.title || 'ללא שם')}</span></span>
+      <span class="pill">👁 תצוגה מקדימה · שאלה ${i + 1} מתוך ${n}</span>
+      <span>
+        <button class="btn ghost" ${i ? '' : 'disabled'} onclick="previewQ(${i - 1})">→ הקודמת</button>
+        <button class="btn ghost" ${i < n - 1 ? '' : 'disabled'} onclick="previewQ(${i + 1})">הבאה ←</button>
+        <button class="btn ghost" onclick="toggleFS()">מסך מלא</button>
+        <button class="btn ghost" onclick="closePreview()">✕ חזרה לעריכה</button>
+      </span>
+    </div>
+    <div class="qtext">${esc(q.text)}</div>
+    <div class="tbar"><div style="width:100%"></div></div>
+    <div class="qmid">
+      <div class="timer">${q.time}</div>
+      <div class="qmedia">${q.poll ? '<span class="polltag" style="font-size:22px">📊 סקר — אין תשובה נכונה</span>' : ''}${mediaHtml(q.media, 'qm', { auto: true })}</div>
+      <div class="counter"><b>0 / 0</b>${q.poll ? 'הצביעו' : 'ענו'}</div>
+    </div>
+    ${answersHtml(q, reveal && !q.poll ? q.correct : null)}
+    <div class="stage-bottom"><span></span>${slogan()}${q.poll ? '<span></span>' : `<button class="btn ghost" onclick="previewQ(${i},${!reveal})">${reveal ? 'הסתרת התשובה' : 'הצגת התשובה הנכונה ✔'}</button>`}</div>
+  </div>`;
+  hydrateMedia(app);
+  window.scrollTo(0, 0);
+}
+function closePreview() {
+  if (!PV) return;
+  const { y } = PV; PV = null;
+  renderEditor(); window.scrollTo(0, y);
+}
+document.addEventListener('keydown', e => {
+  if (!PV) return;
+  if (e.key === 'Escape') closePreview();
+  else if (e.key === 'ArrowLeft' && PV.i < editing.questions.length - 1) previewQ(PV.i + 1);
+  else if (e.key === 'ArrowRight' && PV.i > 0) previewQ(PV.i - 1);
+});
 function setType(i, t) {
   const q = editing.questions[i], wasTf = q.tf;
   if (t === 'tf') { q.tf = true; q.poll = false; q.answers = ['נכון', 'לא נכון']; q.amedia = [null, null]; q.correct = 0; }
