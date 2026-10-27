@@ -1247,8 +1247,17 @@ function importExcel(inp) {
         if (normQs([q]).length) qs.push(q); else skipped++;
       });
       if (!qs.length) return alert('לא נמצאו שאלות תקינות בקובץ. כדאי להוריד את התבנית ולמלא לפיה.');
+      let nq = normQs(qs);
+      // ערבוב סדר התשובות (שאלות רגילות בלבד — לא נכון/לא נכון ולא סקר), כדי שהנכונה לא תהיה תמיד באותו מקום
+      const mcq = nq.filter(q => !q.tf && !q.poll);
+      if (mcq.length) {
+        const same = mcq.length > 1 && mcq.every(q => q.correct === mcq[0].correct);
+        if (confirm((same ? `בכל השאלות התשובה הנכונה נמצאת במקום ${mcq[0].correct + 1}.\n` : '') + 'לערבב את סדר התשובות כך שהתשובה הנכונה תופיע במקומות שונים?')) {
+          nq = nq.map(q => q.tf || q.poll ? q : { ...q, ...shuffleWithCorrect(q.answers, q.correct) });
+        }
+      }
       const sets = loadSets();
-      sets.push({ id: rid(), title: f.name.replace(/\.[^.]+$/, ''), questions: normQs(qs) });
+      sets.push({ id: rid(), title: f.name.replace(/\.[^.]+$/, ''), questions: nq });
       saveSets(sets); renderHome();
       alert(`יובאו ${qs.length} שאלות` + (skipped ? `\n${skipped} שורות דולגו כי חסר בהן משהו` : ''));
     } catch (err) { alert('לא הצלחתי לקרוא את הקובץ: ' + err.message); }
