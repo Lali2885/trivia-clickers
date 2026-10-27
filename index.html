@@ -911,7 +911,7 @@ function renderEditor() {
         `<button class="tab ${(s.tab || 'q') === k ? 'on' : ''}" onclick="editing.tab='${k}';renderEditor()">${t}</button>`).join('')}
     </div>
     ${s.tab === 'ev' ? evHtml() : s.tab === 's' ? settingsHtml() : s.tab === 'a' ? activateHtml() : s.tab === 'st' ? statsHtml() :
-      `<div class="qtools"><button class="mb" onclick="$('cfile').click()">⬆ ייבוא מטופס לקוח (אקסל)</button>${s.isEvent ? '' : '<a class="mb" href="client-form.xlsx" download="טופס שאלות לאירוע.xlsx">⬇ טופס ריק למילוי</a>'}</div>` +
+      `<div class="qtools"><button class="mb" onclick="$('cfile').click()">⬆ ייבוא מטופס לקוח (אקסל)</button>${s.isEvent ? '' : '<a class="mb" href="client-form.xlsx" download="טופס שאלות לאירוע.xlsx">⬇ טופס ריק למילוי</a>'}<button class="mb" onclick="shuffleAllAnswers()">🔀 ערבוב תשובות</button></div>` +
       s.questions.map(qEditor).join('') + '<button class="btn add" onclick="addQ()">+ הוספת שאלה</button>'}
     <input type="file" id="cfile" accept=".xlsx,.xls" hidden onchange="importClientForm(this)">
     <input type="file" id="mfile" accept="image/*,video/*" hidden onchange="mediaPicked(this)">
@@ -951,6 +951,22 @@ function qEditor(q, i) {
     </div>
     <div class="hint">${q.poll ? 'בסקר אין תשובה נכונה ולא מקבלים נקודות. על המסך יוצג כמה הצביעו לכל תשובה.' : 'יש לסמן בעיגול את התשובה הנכונה. לתשובה אפשר לצרף תמונה או סרטון (🖼) במקום טקסט או בנוסף לו.'}</div>
   </div>`;
+}
+// ערבוב סדר התשובות בכל השאלות הרגילות (לא נכון/לא נכון ולא סקר). תשובות ריקות נשארות בסוף, והתמונות זזות יחד עם התשובה
+function shuffleAllAnswers() {
+  const qs = editing.questions.filter(q => !q.tf && !q.poll);
+  if (!qs.length) return alert('אין שאלות עם תשובות לבחירה לערבב.');
+  if (!confirm(`לערבב את סדר התשובות ב-${qs.length} שאלות? התשובה הנכונה תישאר מסומנת. השינוי נשמר רק אחרי לחיצה על "שמירה".`)) return;
+  for (const q of qs) {
+    const am = q.amedia || [];
+    const items = q.answers.map((a, j) => ({ a, m: am[j] || null, ok: j === q.correct }));
+    const full = items.filter(x => String(x.a || '').trim() || x.m), empty = items.filter(x => !(String(x.a || '').trim() || x.m));
+    for (let k = full.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [full[k], full[r]] = [full[r], full[k]]; }
+    const all = [...full, ...empty];
+    q.answers = all.map(x => x.a); q.amedia = all.map(x => x.m);
+    q.correct = Math.max(0, all.findIndex(x => x.ok));
+  }
+  renderEditor();
 }
 function setType(i, t) {
   const q = editing.questions[i], wasTf = q.tf;
