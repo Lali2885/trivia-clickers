@@ -475,7 +475,11 @@ const THEMES = {
   }
 };
 let THEME = 'classic', COLORS = THEMES.classic.colors, SHAPES = THEMES.classic.shapes, TF_COLORS = THEMES.classic.tf;
-function setTheme(name, icons, brand) {
+// מספרים במקום צורות — למשתתפים בשיחת טלפון שמקישים את מספר התשובה (גם נכון/לא נכון: 1/2)
+let ANS_NUM = false;
+const ansMark = (q, j) => ANS_NUM ? j + 1 : q.tf ? (j ? '✘' : '✔') : SHAPES[j];
+function setTheme(name, icons, brand, nums) {
+  ANS_NUM = !!nums;
   const isBrand = name === 'brand' && brand && (brand.colors || []).length === 4;
   if (!isBrand && !THEMES[name]) name = 'classic';
   if (!isBrand && name === 'brand') name = 'classic';
@@ -849,7 +853,7 @@ const qType = q => q.poll ? 'poll' : q.tf ? 'tf' : 'mc';
 /* ====================== הגדרות משחק ====================== */
 const DEFAULT_SETTINGS = {
   theme: 'classic', djIcons: DJ_DEFAULT_ICONS, joinMode: 'callapp', qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
-  showAnswersPhone: true, lateJoin: true,
+  showAnswersPhone: true, lateJoin: true, ansLabels: 'shapes',
   scoring: 'speed', boardWhen: 'each', boardEvery: 3, resultsSec: 10,
   showCorrect: true, showFastest: true, showBoard: true, showRankChange: true, showStreak: true, autoNext: false,
   remoteView: false
@@ -1012,7 +1016,7 @@ const blankQ = () => ({ text: '', answers: ['', '', '', ''], amedia: [null, null
 function renderEditor() {
   const s = editing;
   document.body.classList.add('admin');
-  setTheme(s.settings && s.settings.theme, s.settings && s.settings.djIcons, s.settings && s.settings.brand);
+  setTheme(s.settings && s.settings.theme, s.settings && s.settings.djIcons, s.settings && s.settings.brand, s.settings && s.settings.ansLabels === 'numbers');
   app.innerHTML = `<div class="wrap">
     <div class="toolbar">
       <button class="btn ghost" onclick="if(editing&&editing.isEvent)HOME_TAB='events';editing=null;renderHome()">→ חזרה בלי לשמור</button>
@@ -1062,7 +1066,7 @@ function qEditor(q, i) {
     <div class="ans-ed">${q.answers.map((a, j) => `
       <div class="ae" style="--c:${ansColor(q, j)}">
         ${q.poll ? '' : `<input type="radio" name="c${i}" ${q.correct == j ? 'checked' : ''} onchange="editing.questions[${i}].correct=${j}">`}
-        <span class="shape">${q.tf ? (j ? '✘' : '✔') : SHAPES[j]}</span>
+        <span class="shape">${ansMark(q, j)}</span>
         ${q.tf ? `<span class="tfl">${esc(a)}</span>` : `<input value="${esc(a)}" oninput="editing.questions[${i}].answers[${j}]=this.value" placeholder="תשובה ${j + 1}${j >= 2 ? ' (לא חובה)' : ''}">${mediaSlot((q.amedia || [])[j], i, j)}`}
       </div>`).join('')}
     </div>
@@ -1153,7 +1157,9 @@ function settingsHtml() {
         ${sel('theme', 'ערכת עיצוב', [['classic', 'קלאסית (צבעוני)'], ['dj', '🎧 DJ — ללי שטרן'], ...(c.brand ? [['brand', '🎨 לפי הלוגו']] : [])])}
         ${sel('music', 'מוזיקת רקע', [['classic', 'מנגינת משחק קלאסית'], ['dj', 'ביט DJ'], ['file', 'קובץ מוזיקה שלי'], ['none', 'ללא מוזיקה']])}
       </div>
-      ${c.theme === 'dj' ? iconPickerHtml(c) : ''}
+      <div class="frow" style="margin-top:12px">${sel('ansLabels', 'סימון התשובות', [['shapes', 'צורות (▲ ◆ ● ■)'], ['numbers', 'מספרים (1 2 3 4)']])}</div>
+      ${c.ansLabels === 'numbers' ? '' : c.joinMode === 'call' || c.joinMode === 'callapp' ? '<div class="hint">משתתפים בשיחת טלפון מקישים את מספר התשובה — כדאי לבחור "מספרים" כדי שלא יתבלבלו.</div>' : ''}
+      ${c.theme === 'dj' && c.ansLabels !== 'numbers' ? iconPickerHtml(c) : ''}
       ${c.music === 'file' ? `<div class="mrow">${c.musicFile ? `🎵 ${esc(c.musicFile.name || 'קובץ מוזיקה')} <button class="mb" onclick="setS('musicFile',null,true)">הסרה</button>` : `<button class="mb" onclick="$('afile').click()">בחירת קובץ מוזיקה מהמחשב</button>`}<input type="file" id="afile" accept="audio/*" hidden onchange="musicPicked(this)"></div>` : ''}
       <div class="frow" style="margin-top:12px"><label class="fld"><span>מי משתתף</span><select onchange="setS('joinMode',this.value,true)">${joinOpts(c.joinMode)}</select></label></div>
       <div class="togs">${tog('showAnswersPhone', 'להראות למשתתפים בטלפון אם צדקו')}${tog('lateJoin', 'אפשר הצטרפות מאוחרת')}</div>
@@ -1895,7 +1901,7 @@ async function startSet(set, opts = {}) {
   const qs = normQs(set && set.questions);
   if (!qs.length) return alert('אין במשחק הזה שאלות תקינות');
   const cfg = getSettings(set);
-  setTheme(cfg.theme, cfg.djIcons, cfg.brand);
+  setTheme(cfg.theme, cfg.djIcons, cfg.brand, cfg.ansLabels === 'numbers');
   document.body.classList.remove('admin');
   let code;
   for (let k = 0; k < 25; k++) {
@@ -1907,7 +1913,7 @@ async function startSet(set, opts = {}) {
   H = { code, title: set.title, qs, cfg, qi: -1, players: {}, answers: {}, state: 'lobby', streak: {}, delta: {}, setId: opts.setId || null, event: opts.event || null, onExit: opts.onExit || null, logo: (opts.event && opts.event.logo) || cfg.logo || null, runId: rid(), startedAt: Date.now(), qStats: [], pstat: {} };
   await DB.set(gp('meta'), {
     state: 'lobby', title: set.title, total: qs.length, created: DB.now(), remoteView: !!cfg.remoteView,
-    cfg: { maxPlayers: cfg.maxPlayers, lateJoin: cfg.lateJoin, feedback: cfg.showAnswersPhone, streak: cfg.showStreak, scoring: cfg.scoring, theme: cfg.theme, icons: cfg.djIcons, brand: cfg.theme === 'brand' ? cfg.brand || null : null, joinMode: cfg.joinMode }
+    cfg: { maxPlayers: cfg.maxPlayers, lateJoin: cfg.lateJoin, feedback: cfg.showAnswersPhone, streak: cfg.showStreak, scoring: cfg.scoring, theme: cfg.theme, icons: cfg.djIcons, brand: cfg.theme === 'brand' ? cfg.brand || null : null, joinMode: cfg.joinMode, nums: cfg.ansLabels === 'numbers' }
   });
   const pb = parsePhonebook(cfg.phonebook).ok;
   if (pb.length && cfg.joinMode !== 'app') {
@@ -2037,7 +2043,7 @@ async function nextQ() {
 function answersHtml(q, revealIdx) {
   return `<div class="answers">${q.answers.map((a, j) => `
     <div class="ans ${revealIdx != null && j !== revealIdx ? 'dim' : ''}" style="background:${ansColor(q, j)}">
-      <span class="shape">${q.tf ? (j ? '✘' : '✔') : SHAPES[j]}</span>
+      <span class="shape">${ansMark(q, j)}</span>
       ${q.amedia && q.amedia[j] ? mediaHtml(q.amedia[j], a ? 'am' : 'am big', { muted: true }) : ''}
       <span>${esc(a)}${!q.amedia && q.pics && q.pics[j] ? ' 🖼' : ''}</span>
       ${revealIdx === j ? '<span class="ck">✔</span>' : ''}
@@ -2287,7 +2293,7 @@ function playerJoinScreen(code, err) {
   // אם כבר יודעים את קוד המשחק — מחילים את ערכת העיצוב שלו
   if (code && !THEME_CHECKED[code]) {
     THEME_CHECKED[code] = 1;
-    DB.get(`games/${code}/meta`).then(m => { if (m && m.cfg && m.cfg.theme && (m.cfg.theme !== THEME || m.cfg.theme === 'brand')) { setTheme(m.cfg.theme, m.cfg.icons, m.cfg.brand); const n = $('pname') && $('pname').value; playerJoinScreen(code, err); if (n) $('pname').value = n; } });
+    DB.get(`games/${code}/meta`).then(m => { if (m && m.cfg && m.cfg.theme && (m.cfg.theme !== THEME || m.cfg.theme === 'brand')) { setTheme(m.cfg.theme, m.cfg.icons, m.cfg.brand, m.cfg.nums); const n = $('pname') && $('pname').value; playerJoinScreen(code, err); if (n) $('pname').value = n; } });
   }
   $('pname').onkeydown = e => { if (e.key === 'Enter') pJoin(); };
 }
@@ -2329,7 +2335,7 @@ function pTop() {
 function renderPlayer() {
   clearInterval(P.timer);
   const m = P.meta;
-  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons, m && m.cfg && m.cfg.brand);
+  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons, m && m.cfg && m.cfg.brand, m && m.cfg && m.cfg.nums);
   if (!m) { PSTORE.removeItem(SESS_KEY); return playerJoinScreen('', 'המשחק נסגר'); }
   let body = '';
   if (m.state === 'lobby') {
@@ -2348,7 +2354,7 @@ function renderPlayer() {
         <div class="pq">${q.poll ? '<span class="polltag">📊 סקר</span><br>' : ''}${esc(q.text)}${q.media || (q.pics || []).some(Boolean) ? '<br><b>👀 הסתכלו על המסך</b>' : ''}</div>
         <div class="pgrid ${q.tf ? 'two' : ''}">${q.answers.map((a, j) => `
           <button class="pbtn" style="background:${ansColor(q, j)}" onclick="pAnswer(${j})">
-            <span class="shape">${q.tf ? (j ? '✘' : '✔') : SHAPES[j]}</span><span>${esc(a)}${(q.pics || [])[j] ? ' 🖼' : ''}</span>
+            <span class="shape">${ansMark(q, j)}</span><span>${esc(a)}${(q.pics || [])[j] ? ' 🖼' : ''}</span>
           </button>`).join('')}</div>`;
       P.timer = setInterval(pTick, 250);
       setTimeout(pTick, 0);
@@ -2410,7 +2416,7 @@ function watchTick() {
 }
 function renderWatch() {
   const m = W.meta;
-  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons, m && m.cfg && m.cfg.brand);
+  setTheme(m && m.cfg && m.cfg.theme, m && m.cfg && m.cfg.icons, m && m.cfg && m.cfg.brand, m && m.cfg && m.cfg.nums);
   if (!m) { app.innerHTML = `<div class="pwrap"><div class="logo">🎯 טריוויה</div><div class="pbig">המשחק לא נמצא או שהסתיים</div></div>`; return; }
   if (!m.remoteView) { app.innerHTML = `<div class="pwrap"><div class="logo">🎯 טריוויה</div><div class="pbig">צפייה מרחוק לא מופעלת במשחק הזה</div></div>`; return; }
   const rows = list => (list || []).map((p, k) => `<div class="brow"><span><span class="r">${k + 1}</span>${esc(p.name)}</span><span class="side">${p.st >= 2 ? `<span class="streak">🔥${p.st}</span>` : ''}${p.d ? `<span class="delta ${p.d > 0 ? 'up' : 'down'}">${p.d > 0 ? '▲' : '▼'}${Math.abs(p.d)}</span>` : ''}<span>${p.score}</span></span></div>`).join('');
