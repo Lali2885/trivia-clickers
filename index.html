@@ -267,7 +267,13 @@ body:not(.admin) #cloudst{display:none}
 .lobby-r h2{font-size:34px;margin:0 0 14px}
 .chips{display:flex;flex-wrap:wrap;gap:10px;max-height:52vh;overflow:auto}
 .chip{background:#fff;color:var(--ink);font-weight:700;font-size:20px;padding:8px 18px;border-radius:999px;animation:pop .35s ease}
-.chip:hover{background:#ffd6dc;text-decoration:line-through}
+.chip{display:inline-flex;align-items:center;gap:6px}
+.chip .cb{border:0;background:transparent;cursor:pointer;font-size:15px;opacity:.5;padding:0 2px;color:inherit}
+.chip .cb:hover{opacity:1}
+.namesbox{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:16px}
+.namesbox .nb{background:#fff;color:#263238;border-radius:16px;padding:20px;width:min(560px,100%);max-height:90vh;overflow:auto}
+.namesbox h3{margin:0 0 8px}
+.namesbox .hint{color:#55656d}
 @keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
 .stage-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:18px;gap:12px}
 .qtext{background:#fff;color:var(--ink);border-radius:16px;padding:26px;font-size:clamp(26px,4vw,46px);font-weight:700;text-align:center;margin:18px 0}
@@ -1939,6 +1945,7 @@ function stageTop(right) {
     ${right || ''}
     <span>
       ${H.cfg.music !== 'none' ? `<button class="btn ghost" id="mbtn" title="מוזיקה" onclick="Music.toggle()">${Music.on ? '🔊' : '🔇'}</button>` : ''}
+      ${H.cfg.joinMode !== 'app' ? '<button class="btn ghost" onclick="namesBox()">📇 שמות</button>' : ''}
       <button class="btn ghost" onclick="toggleFS()">מסך מלא</button>
       <button class="btn ghost" onclick="endHost()">יציאה</button>
     </span>
@@ -1992,7 +1999,7 @@ function renderLobby() {
         ${H.event || H.logo ? `<div class="evbrand">${H.logo ? `<img src="${H.logo}" alt="">` : ''}<h1>${esc((H.event && H.event.title) || H.title || '')}</h1></div>` : slogan('big')}
         <h2>משתתפים: <span id="pcount">0</span>${max}</h2>
         <div class="chips" id="chips"></div>
-        <div class="hint" style="color:#fff;opacity:.7;margin-top:10px">לחיצה על שם מוציאה את המשתתף מהמשחק</div>
+        <div class="hint" style="color:#fff;opacity:.7;margin-top:10px">✏️ שינוי שם · ✕ הוצאה מהמשחק</div>
       </div>
     </div>
     <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="nextQ()" disabled>התחלת המשחק ▶</button></div>
@@ -2000,6 +2007,37 @@ function renderLobby() {
   if ($('qr')) try { new QRCode($('qr'), { text: url, width: 230, height: 230 }); } catch (e) {}
   if (H.cfg.remoteView) try { new QRCode($('wqr'), { text: wurl, width: 90, height: 90 }); } catch (e) {}
   onPlayers();
+}
+/* ---- עדכון שמות תוך כדי משחק ---- */
+function renamePlayer(pid) {
+  const p = H.players[pid]; if (!p) return;
+  const n = prompt('שם חדש:', String(p.name || '').replace(/^📞 /, ''));
+  if (n == null || !n.trim()) return;
+  DB.update(gp('players/' + pid), { name: (pid.startsWith('tel_') ? '📞 ' : '') + n.trim().slice(0, 30) });
+}
+function namesBox() {
+  if ($('namesbox')) return;
+  const d = document.createElement('div'); d.className = 'namesbox'; d.id = 'namesbox';
+  d.innerHTML = `<div class="nb"><h3>📇 עדכון שמות</h3>
+    <div class="hint">שורה לכל משתתף: שם וטלפון (אפשר להדביק שתי עמודות מאקסל). מי שכבר מחובר מהמספר הזה יתעדכן מיד על המסך, ומי שיתקשר אחר כך ייכנס בשם שלו.</div>
+    <textarea class="pbook" id="nbtext" rows="8" dir="rtl" placeholder="משה כהן  050-1234567&#10;שרה לוי  052-7654321"></textarea>
+    <div class="hint" id="nbmsg"></div>
+    <div class="frow"><button class="btn primary" onclick="applyNames()">עדכון</button><button class="btn" onclick="$('namesbox').remove()">סגירה</button></div></div>`;
+  document.body.appendChild(d); $('nbtext').focus();
+}
+async function applyNames() {
+  const { ok, bad } = parsePhonebook($('nbtext').value);
+  if (!ok.length) { $('nbmsg').textContent = 'לא זוהו שורות עם שם וטלפון'; return; }
+  const upd = {}; let now = 0;
+  for (const x of ok) {
+    upd['phonebook/' + await phoneKey(x.phone)] = x.name;
+    // מזהה משתתף מטלפון = tel_ + המספר כפי שהגיע מהמרכזיה (05… או 9725…)
+    for (const pid of ['tel_' + x.phone, 'tel_972' + x.phone.slice(1)]) if (H.players[pid]) { upd['players/' + pid + '/name'] = '📞 ' + x.name; now++; }
+  }
+  try { await DB.update(gp(''), upd); } catch (e) { $('nbmsg').textContent = 'העדכון נכשל: ' + e.message; return; }
+  $('nbtext').value = bad.join('\n');
+  $('nbmsg').innerHTML = `✔ נשמרו ${ok.length} שמות` + (now ? ` · ${now} מהם כבר מחוברים ועודכנו על המסך` : '') +
+    (bad.length ? ` · <b style="color:#c0392b">${bad.length} שורות לא זוהו ונשארו בתיבה</b>` : '');
 }
 function kick(pid) { const p = H.players[pid]; if (p && confirm(`להוציא את ${p.name}?`)) DB.remove(gp('players/' + pid)); }
 
@@ -2014,9 +2052,12 @@ function onPlayers() {
     [...$('chips').children].forEach(c => { if (!now.has(c.dataset.pid)) c.remove(); });
     for (const pid of now) if (!have.has(pid)) {
       const c = document.createElement('span'); c.className = 'chip'; c.dataset.pid = pid;
-      c.textContent = H.players[pid].name; c.onclick = () => kick(pid);
+      c.innerHTML = '<span class="nm"></span><button class="cb" title="שינוי שם">✏️</button><button class="cb" title="הוצאה מהמשחק">✕</button>';
+      const [ed, del] = c.querySelectorAll('.cb'); ed.onclick = () => renamePlayer(pid); del.onclick = () => kick(pid);
       $('chips').appendChild(c); beep(520, .08, 'triangle', .1);
     }
+    // שם יכול להשתנות תוך כדי (עדכון שמות / שיחה חוזרת)
+    [...$('chips').children].forEach(c => { const p = H.players[c.dataset.pid]; if (p) c.querySelector('.nm').textContent = p.name; });
   }
   if (H.state === 'question') updCount();
 }
