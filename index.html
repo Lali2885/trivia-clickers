@@ -257,6 +257,8 @@ body:not(.admin) #cloudst{display:none}
 .eq i{flex:1;height:100%;border-radius:3px 3px 0 0;background:linear-gradient(#F05235,#25BDF0);transform-origin:bottom;animation:eqb .9s ease-in-out infinite alternate}
 @keyframes eqb{from{transform:scaleY(.15)}to{transform:scaleY(1)}}
 .stage-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.codepill{font-size:clamp(15px,2.2vh,20px)}
+.codepill b{font-size:1.35em;letter-spacing:2px;margin-inline-start:4px}
 .pill{background:rgba(255,255,255,.15);border-radius:999px;padding:8px 16px;font-weight:700}
 .lobby{flex:1;display:grid;grid-template-columns:auto 1fr;gap:36px;align-items:center;margin-top:20px}
 .joinbox{background:#fff;color:var(--ink);border-radius:20px;padding:24px;text-align:center}
@@ -288,11 +290,19 @@ body:not(.admin) #cloudst{display:none}
 .ans .shape{font-size:30px;flex:none}
 .ans.dim{opacity:.3}
 .ans .ck{margin-inline-start:auto;font-size:34px}
-.bars{display:flex;justify-content:center;align-items:flex-end;gap:22px;height:200px}
-.bar{width:90px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
-.bar .b{width:100%;border-radius:8px 8px 0 0;transition:height .6s}
-.bar .n{font-size:26px;font-weight:900;margin-bottom:4px}
-.bar.dim{opacity:.35}
+/* מסך תשובה: הספירה בתוך כל תשובה במקום גרף נפרד, והכל נכנס לגובה המסך בלי גלילה */
+.stage.reveal{height:100vh;min-height:0;overflow:hidden}
+.stage.reveal .qtext{padding:14px 22px;font-size:clamp(22px,min(3.2vw,5vh),40px);margin:12px 0}
+.stage.reveal .answers{flex:1 1 auto;min-height:0;grid-auto-rows:minmax(0,1fr);align-content:stretch;max-height:58vh}
+.stage.reveal .ans{padding:12px 18px;font-size:clamp(18px,min(2.4vw,4vh),32px);min-height:0;overflow:hidden}
+.stage.reveal .ans.dim{opacity:.45}
+.stage.reveal .am{height:min(100px,11vh)}
+.stage.reveal .am.big{height:15vh}
+.ans .cnt{margin-inline-start:auto;flex:none;font-size:1.15em;font-weight:900;background:rgba(0,0,0,.22);border-radius:10px;padding:2px 14px;min-width:2.2em;text-align:center}
+.ans .ck+.cnt,.ans .cnt+.ck{margin-inline-start:0}
+.ans .fill{position:absolute;inset-inline-start:0;bottom:0;height:7px;background:rgba(255,255,255,.8);border-radius:0 0 0 12px;transition:width .8s ease}
+.stage.reveal .fastest{margin-top:10px;font-size:clamp(16px,2.6vh,22px)}
+.stage.reveal .stage-bottom{padding-top:10px}
 .board{max-width:760px;margin:20px auto;width:100%}
 .board h2{text-align:center;font-size:44px;margin:10px 0 24px}
 .brow{display:flex;justify-content:space-between;align-items:center;background:#fff;color:var(--ink);border-radius:12px;padding:16px 22px;margin-bottom:10px;font-size:28px;font-weight:700;animation:slide .4s ease both}
@@ -1941,7 +1951,7 @@ const sortedPlayers = () => Object.entries(H.players).sort((a, b) => (b[1].score
 
 function stageTop(right) {
   return `<div class="stage-top">
-    <span style="display:flex;gap:10px;align-items:center">${djLogo()}<span class="pill">${esc(H.title)}</span></span>
+    <span style="display:flex;gap:10px;align-items:center">${djLogo()}<span class="pill">${esc(H.title)}</span>${codePill()}</span>
     ${right || ''}
     <span>
       ${H.cfg.music !== 'none' ? `<button class="btn ghost" id="mbtn" title="מוזיקה" onclick="Music.toggle()">${Music.on ? '🔊' : '🔇'}</button>` : ''}
@@ -1950,6 +1960,11 @@ function stageTop(right) {
       <button class="btn ghost" onclick="endHost()">יציאה</button>
     </span>
   </div>`;
+}
+// קוד המשחק תמיד בפינה — מי שהשיחה שלו נותקה או שיצא מהאפליקציה יכול לחזור (במסך ההמתנה הקוד כבר מופיע בגדול)
+function codePill() {
+  if (H.state === 'lobby' || H.cfg.joinMode === 'clickers') return '';
+  return `<span class="pill codepill">${H.cfg.joinMode !== 'app' ? `📞 ${PHONE_LINE} · ` : ''}קוד המשחק: <b>${H.code}</b></span>`;
 }
 function toggleFS() { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
 function endHost() {
@@ -2081,13 +2096,15 @@ async function nextQ() {
   H.timer = setInterval(tick, 200);
 }
 
-function answersHtml(q, revealIdx) {
+function answersHtml(q, revealIdx, counts) {
+  const tot = counts ? Math.max(1, counts.reduce((x, y) => x + y, 0)) : 0;
   return `<div class="answers">${q.answers.map((a, j) => `
     <div class="ans ${revealIdx != null && j !== revealIdx ? 'dim' : ''}" style="background:${ansColor(q, j)}">
       <span class="shape">${ansMark(q, j)}</span>
       ${q.amedia && q.amedia[j] ? mediaHtml(q.amedia[j], a ? 'am' : 'am big', { muted: true }) : ''}
       <span>${esc(a)}${!q.amedia && q.pics && q.pics[j] ? ' 🖼' : ''}</span>
       ${revealIdx === j ? '<span class="ck">✔</span>' : ''}
+      ${counts ? `<span class="cnt">${counts[j] || 0}</span><span class="fill" style="width:${(counts[j] || 0) / tot * 100}%"></span>` : ''}
     </div>`).join('')}</div>`;
 }
 
@@ -2207,20 +2224,15 @@ function afterReveal() {
 }
 
 function renderReveal(counts) {
-  const q = H.qs[H.qi], max = Math.max(1, ...counts), nx = afterReveal();
+  const q = H.qs[H.qi], nx = afterReveal();
   const showC = H.cfg.showCorrect || q.poll;
   const answered = counts.reduce((x, y) => x + y, 0);
-  app.innerHTML = `<div class="stage">
+  app.innerHTML = `<div class="stage reveal">
     ${stageTop(`<span class="pill">שאלה ${H.qi + 1} מתוך ${H.qs.length}</span>`)}
     <div class="qtext">${q.poll ? '📊 ' : ''}${esc(q.text)}</div>
     ${showC ? `
-    <div class="bars">${counts.map((c, j) => `
-      <div class="bar ${!q.poll && j !== q.correct ? 'dim' : ''}">
-        <div class="n">${c}</div>
-        <div class="b" style="height:${Math.max(4, c / max * 150)}px;background:${ansColor(q, j)}"></div>
-      </div>`).join('')}</div>
-    <div style="height:18px"></div>
-    ${answersHtml(q, q.poll ? null : q.correct)}` : `
+    <div class="pill" style="align-self:center;margin-bottom:10px">${answered} מתוך ${playerCount()} ${q.poll ? 'הצביעו' : 'ענו'}</div>
+    ${answersHtml(q, q.poll ? null : q.correct, counts)}` : `
     <div class="board" style="text-align:center"><h2>⏰ הזמן נגמר!</h2><div style="font-size:28px">${answered} מתוך ${playerCount()} ענו</div></div>`}
     ${H.cfg.showFastest && !q.poll && H.fast.length ? `<div class="fastest">⚡ הכי מהירים: ${H.fast.map(f => `<span>${esc(f.name)} <small>${f.el} שנ'</small></span>`).join('')}</div>` : ''}
     <div class="stage-bottom"><span class="autolbl" id="autolbl"></span>${slogan()}
@@ -2472,9 +2484,8 @@ function renderWatch() {
       ${answersHtml(q)}`;
   } else if (m.state === 'reveal') {
     const q = m.q, r = m.reveal || {};
-    const max = Math.max(1, ...(r.counts || [1]));
     body = `<div class="qtext">${esc(q.text)}</div>
-      ${r.counts ? `<div class="bars">${r.counts.map((c, j) => `<div class="bar ${r.correct >= 0 && j !== r.correct ? 'dim' : ''}"><div class="n">${c}</div><div class="b" style="height:${Math.max(4, c / max * 150)}px;background:${ansColor(q, j)}"></div></div>`).join('')}</div><div style="height:18px"></div>${answersHtml(q, r.correct >= 0 ? r.correct : null)}`
+      ${r.counts ? answersHtml(q, r.correct >= 0 ? r.correct : null, r.counts)
         : `<div class="board" style="text-align:center"><h2>⏰ הזמן נגמר!</h2><div style="font-size:28px">${r.answered || 0} ענו</div></div>`}
       ${r.fast && r.fast.length ? `<div class="fastest">⚡ הכי מהירים: ${r.fast.map(f => `<span>${esc(f.name)} <small>${f.el} שנ'</small></span>`).join('')}</div>` : ''}`;
   } else if (m.state === 'board') {
@@ -2482,7 +2493,7 @@ function renderWatch() {
   } else if (m.state === 'end') {
     body = m.board ? `<div class="board"><h2>🏆 תוצאות סופיות 🏆</h2>${rows(m.board)}</div>` : `<div class="board" style="text-align:center"><h2>🎉 המשחק נגמר!</h2></div>`;
   }
-  app.innerHTML = `<div class="stage"><div class="stage-top"><span style="display:flex;gap:10px;align-items:center">${djLogo()}<span class="pill">${esc(m.title)}</span></span>${m.state === 'question' || m.state === 'reveal' ? `<span class="pill">שאלה ${m.i + 1} מתוך ${m.total}</span>` : ''}<span class="pill">👁 צפייה מרחוק</span></div>${body}</div>`;
+  app.innerHTML = `<div class="stage${m.state === 'reveal' ? ' reveal' : ''}"><div class="stage-top"><span style="display:flex;gap:10px;align-items:center">${djLogo()}<span class="pill">${esc(m.title)}</span></span>${m.state === 'question' || m.state === 'reveal' ? `<span class="pill">שאלה ${m.i + 1} מתוך ${m.total}</span>` : ''}<span class="pill">👁 צפייה מרחוק</span></div>${body}</div>`;
   watchTick();
 }
 
