@@ -86,7 +86,8 @@ async function handle(p) {
 
   if (meta.state === 'end') {
     const r = await db(`games/${code}/results/${pid}`);
-    return bye(['המשחק נגמר', r && r.rank ? `סיימתם במקום ${r.rank} מתוך ${r.of} עם ${r.score} נקודות` : '', 'תודה ששיחקתם']);
+    // meta.ad.say — משפט הפרסום של המנחה (רק אם הופעל "בטלפון של המשתתפים בסוף")
+    return bye(['המשחק נגמר', r && r.rank ? `סיימתם במקום ${r.rank} מתוך ${r.of} עם ${r.score} נקודות` : '', 'תודה ששיחקתם', meta.ad && meta.ad.say]);
   }
   if (!(await db(`games/${code}/players/${pid}`))) return bye(['הוצאתם מהמשחק']);
 

@@ -276,6 +276,22 @@ body:not(.admin) #cloudst{display:none}
 .namesbox .nb{background:#fff;color:#263238;border-radius:16px;padding:20px;width:min(560px,100%);max-height:90vh;overflow:auto}
 .namesbox h3{margin:0 0 8px}
 .namesbox .hint{color:#55656d}
+.namesbox .togs{grid-template-columns:1fr}
+/* פרסום */
+.adbox{display:flex;gap:18px;align-items:center;justify-content:center;background:rgba(255,255,255,.12);border-radius:16px;padding:12px 18px;margin-top:14px}
+.adbox .adm{max-height:22vh;max-width:40%;border-radius:10px;object-fit:contain}
+.adbox iframe.adm{height:22vh;aspect-ratio:16/9;border:0}
+.adt{font-size:clamp(18px,2.8vh,28px);font-weight:800}
+.adp{font-size:clamp(22px,3.6vh,36px);font-weight:900;direction:ltr;display:inline-block}
+.adscreen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:0;text-align:center}
+.adscreen .adm{max-height:50vh;max-width:90vw;border-radius:16px;object-fit:contain}
+.adscreen iframe.adm{height:50vh;aspect-ratio:16/9;border:0}
+.adscreen .adt{font-size:clamp(26px,4.6vh,50px)}
+.adrow{display:flex;gap:28px;align-items:center;justify-content:center;flex-wrap:wrap}
+.adqr{background:#fff;padding:10px;border-radius:12px}
+.pad{background:rgba(255,255,255,.12);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.pad img{max-width:100%;max-height:30vh;object-fit:contain;border-radius:12px;align-self:center}
+.pad a.btn{text-decoration:none;display:block}
 @keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
 .stage-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:18px;gap:12px}
 .qtext{background:#fff;color:var(--ink);border-radius:16px;padding:26px;font-size:clamp(26px,4vw,46px);font-weight:700;text-align:center;margin:18px 0}
@@ -809,6 +825,11 @@ const Cloud = {
       if (first) { first = false; this.uploadMediaOf(merged); }
       if (before !== JSON.stringify(merged) && !H && !editing) renderHome();
     }));
+    this.unsub.push(DB.on('admin/ad', v => {
+      const l = loadAd();
+      if (v && (v.updatedAt || 0) > (l.updatedAt || 0)) localStorage.setItem(AD_KEY, JSON.stringify(v));
+      else if (l.updatedAt && (!v || (v.updatedAt || 0) < l.updatedAt)) saveAd(l);
+    }));
     this.unsub.push(DB.on('admin/runs', v => {
       const merged = this.merge('runs', v, loadRuns()).sort((a, b) => (b.date || 0) - (a.date || 0));
       try { localStorage.setItem(RUNS_KEY, JSON.stringify(merged.slice(0, 300))); } catch (e) {}
@@ -848,6 +869,83 @@ const Cloud = {
 };
 function joinBase() { return location.href.split('?')[0].split('#')[0]; }
 
+/* ====================== הפרסום שלי (מסך ההמתנה, מסך אחרי המנצחים, הטלפון של המשתתפים) ====================== */
+const AD_KEY = 'trivia_ad';
+const AD_DEFAULT = { media: null, title: '', phone: '', wa: '', site: '', say: '', lobby: true, end: true, phone_end: true };
+function loadAd() { try { return { ...AD_DEFAULT, ...(JSON.parse(localStorage.getItem(AD_KEY)) || {}) }; } catch (e) { return { ...AD_DEFAULT }; } }
+function saveAd(ad) {
+  ad.updatedAt = Date.now();
+  localStorage.setItem(AD_KEY, JSON.stringify(ad));
+  if (Cloud.on) { DB.set('admin/ad', ad).catch(() => {}); if (ad.media && String(ad.media.src).startsWith('idb:')) Cloud.uploadMedia(ad.media.src.slice(4)); }
+}
+const adHas = ad => !!ad && !!(ad.media || ad.title || ad.phone || ad.site);
+const siteUrl = u => !u ? '' : /^https?:/i.test(u) ? u : 'https://' + u;
+const waLink = n => { const d = normPhone(n); return d ? 'https://wa.me/972' + d.slice(1) : ''; };
+// מה שעובר לטלפונים ולמחשב של לקוח: קובץ מהמחשב (idb:) לא נגיש שם — רק מדיה מקישור
+const adPublic = ad => ({ ...ad, media: ad.media && !String(ad.media.src).startsWith('idb:') ? ad.media : null });
+function adSay(ad) {
+  if (ad.say) return ad.say;
+  const d = normPhone(ad.phone);
+  return [ad.title, d ? 'להזמנות ' + d.split('').join(' ') : ''].filter(Boolean).join(' ');
+}
+function adContacts(ad) {
+  const d = normPhone(ad.phone), wa = waLink(ad.wa || ad.phone);
+  return [d && `<a class="btn" href="tel:${d}">📞 ${esc(ad.phone)}</a>`, wa && `<a class="btn" href="${wa}" target="_blank">💬 וואטסאפ</a>`,
+    ad.site && `<a class="btn" href="${esc(siteUrl(ad.site))}" target="_blank">🌐 ${esc(ad.site)}</a>`].filter(Boolean).join('');
+}
+const adText = ad => `${ad.title ? `<div class="adt">${esc(ad.title)}</div>` : ''}${ad.phone ? `<div class="adp">📞 ${esc(ad.phone)}</div>` : ''}${ad.site ? `<div class="adt" dir="ltr">${esc(ad.site)}</div>` : ''}`;
+function adStrip() {
+  const ad = H.ad; if (!ad || !ad.lobby) return '';
+  return `<div class="adbox">${mediaHtml(ad.media, 'adm', { muted: true })}<div>${adText(ad)}</div></div>`;
+}
+function showAdScreen() {
+  const ad = H.ad, link = waLink(ad.wa || ad.phone) || siteUrl(ad.site);
+  app.innerHTML = `<div class="stage">
+    ${stageTop()}
+    <div class="adscreen">
+      ${mediaHtml(ad.media, 'adm', { auto: true })}
+      <div class="adrow">${link ? '<div class="adqr" id="adqr"></div>' : ''}<div>${adText(ad)}</div></div>
+    </div>
+    <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="endHost()">${H.onExit ? 'סיום' : 'סיום וחזרה למסך הראשי'}</button></div>
+  </div>`;
+  hydrateMedia(app);
+  if (link) try { new QRCode($('adqr'), { text: link, width: 160, height: 160 }); } catch (e) {}
+}
+// עריכת הפרסום — מהמסך הראשי, משותף לכל המשחקים
+let AD_EDIT = null;
+function adBox() { AD_EDIT = loadAd(); renderAdBox(); }
+function renderAdBox() {
+  const a = AD_EDIT;
+  let d = $('adbox');
+  if (!d) { d = document.createElement('div'); d.className = 'namesbox'; d.id = 'adbox'; document.body.appendChild(d); }
+  const f = (k, label, ph, ltr) => `<label class="fld"><span>${label}</span><input value="${esc(a[k] || '')}" ${ltr ? 'dir="ltr"' : ''} placeholder="${esc(ph)}" oninput="AD_EDIT.${k}=this.value"></label>`;
+  const t = (k, label) => `<label class="tog"><input type="checkbox" ${a[k] ? 'checked' : ''} onchange="AD_EDIT.${k}=this.checked"><span class="sw"></span>${label}</label>`;
+  d.innerHTML = `<div class="nb"><h3>📣 הפרסום שלי</h3>
+    <div class="hint">מופיע בכל המשחקים. במשחק מסוים אפשר לכבות אותו בלשונית "הגדרות" של המשחק.</div>
+    <div class="mrow">${a.media ? `<span class="athumb">${mediaHtml(a.media, 'thumb')}<button class="x" title="הסרה" onclick="AD_EDIT.media=null;renderAdBox()">✕</button></span>`
+      : `<button class="mb" onclick="$('adfile').click()">🖼 תמונה / סרטון מהמחשב</button><button class="mb" onclick="adLink()">🔗 קישור (גם YouTube)</button>`}
+      <input type="file" id="adfile" accept="image/*,video/*" hidden onchange="adPicked(this)"></div>
+    ${a.media && String(a.media.src).startsWith('idb:') ? '<div class="hint">קובץ מהמחשב מוצג במסך הגדול. בטלפונים של המשתתפים ובאירוע שהלקוח מפעיל אצלו תוצג תמונה רק אם היא מקישור.</div>' : ''}
+    <div class="frow" style="margin-top:12px">${f('title', 'שורת פרסום', 'ללי שטרן – מוזיקה בקצב לכל אירוע')}</div>
+    <div class="frow">${f('phone', 'טלפון להזמנות', '050-1234567', 1)}${f('wa', 'וואטסאפ (אם שונה מהטלפון)', '', 1)}</div>
+    <div class="frow">${f('site', 'אתר / אינסטגרם', 'www.example.co.il', 1)}</div>
+    <div class="frow">${f('say', 'משפט בסוף שיחת טלפון', adSay(a) || 'נבנה לבד משורת הפרסום והטלפון')}</div>
+    <div class="togs">${t('lobby', 'במסך ההמתנה (בזמן שמתחברים)')}${t('end', 'מסך פרסום אחרי המנצחים')}${t('phone_end', 'בטלפון של המשתתפים בסוף (כפתורי חיוג / וואטסאפ, והודעה בשיחה)')}</div>
+    <div class="frow" style="margin-top:14px"><button class="btn primary" onclick="saveAd(AD_EDIT);$('adbox').remove()">שמירה</button><button class="btn" onclick="$('adbox').remove()">ביטול</button></div></div>`;
+  hydrateMedia(d);
+}
+async function adPicked(inp) {
+  const f = inp.files[0]; inp.value = ''; if (!f) return;
+  if (f.size > Cloud.MAX) return alert('הקובץ גדול מדי (מעל 60MB)');
+  AD_EDIT.media = { kind: f.type.startsWith('video') ? 'video' : 'image', src: await Media.put(f) };
+  renderAdBox();
+}
+function adLink() {
+  const u = (prompt('הדביקי קישור לתמונה, לסרטון או ל-YouTube:') || '').trim(); if (!u) return;
+  AD_EDIT.media = { kind: ytId(u) ? 'youtube' : /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? 'video' : 'image', src: u };
+  renderAdBox();
+}
+
 // מנקה שאלות לפני משחק: מוריד תשובות ריקות (בלי טקסט ובלי תמונה) ומעדכן את אינדקס התשובה הנכונה
 function normQs(qs) {
   const out = [];
@@ -869,7 +967,7 @@ const qType = q => q.poll ? 'poll' : q.tf ? 'tf' : 'mc';
 /* ====================== הגדרות משחק ====================== */
 const DEFAULT_SETTINGS = {
   theme: 'classic', djIcons: DJ_DEFAULT_ICONS, joinMode: 'callapp', qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
-  showAnswersPhone: true, lateJoin: true, ansLabels: 'shapes',
+  showAnswersPhone: true, lateJoin: true, ansLabels: 'shapes', showAd: true,
   scoring: 'speed', boardWhen: 'each', boardEvery: 3, resultsSec: 10,
   showCorrect: true, showFastest: true, showBoard: true, showRankChange: true, showStreak: true, autoNext: false,
   remoteView: false
@@ -969,6 +1067,7 @@ function renderHome() {
       <button class="btn primary" onclick="newSet()">+ משחק חדש</button>
       <button class="btn" onclick="$('xl').click()">⬆ ייבוא מאקסל</button>
       <button class="btn" onclick="downloadTemplate()">⬇ תבנית אקסל</button>
+      <button class="btn" onclick="adBox()">📣 הפרסום שלי</button>
       <span class="sp"></span>
       <button class="btn ghost" onclick="restoreBank()">↺ שחזור המאגר המוכן</button>
       <input type="file" id="xl" accept=".xlsx,.xls,.csv" hidden onchange="importExcel(this)">
@@ -1178,7 +1277,7 @@ function settingsHtml() {
       ${c.theme === 'dj' && c.ansLabels !== 'numbers' ? iconPickerHtml(c) : ''}
       ${c.music === 'file' ? `<div class="mrow">${c.musicFile ? `🎵 ${esc(c.musicFile.name || 'קובץ מוזיקה')} <button class="mb" onclick="setS('musicFile',null,true)">הסרה</button>` : `<button class="mb" onclick="$('afile').click()">בחירת קובץ מוזיקה מהמחשב</button>`}<input type="file" id="afile" accept="audio/*" hidden onchange="musicPicked(this)"></div>` : ''}
       <div class="frow" style="margin-top:12px"><label class="fld"><span>מי משתתף</span><select onchange="setS('joinMode',this.value,true)">${joinOpts(c.joinMode)}</select></label></div>
-      <div class="togs">${tog('showAnswersPhone', 'להראות למשתתפים בטלפון אם צדקו')}${tog('lateJoin', 'אפשר הצטרפות מאוחרת')}</div>
+      <div class="togs">${tog('showAnswersPhone', 'להראות למשתתפים בטלפון אם צדקו')}${tog('lateJoin', 'אפשר הצטרפות מאוחרת')}${tog('showAd', '📣 להציג את הפרסום שלי')}</div>
     </div>
     <div class="scard">
       <h3>ניקוד ותוצאות</h3>
@@ -1792,7 +1891,7 @@ async function saveEventRec(clean, stay) {
       if (await DB.get('events/' + code)) { alert(`הקוד ${code} כבר תפוס. בחרי קוד אחר.`); return false; }
     }
     const rec = { code, title: clean.title, client: v.client.trim(), from: v.from || '', to: v.to || '', logo: v.logo || null,
-      questions: clean.questions, settings: clean.settings, updatedAt: Date.now() };
+      questions: clean.questions, settings: clean.settings, ad: adHas(loadAd()) ? adPublic(loadAd()) : null, updatedAt: Date.now() };
     if (!v.origCode) rec.createdAt = Date.now();
     await DB.update('events/' + code, rec);
     if (v.origCode && v.origCode !== code) {
@@ -1836,7 +1935,7 @@ async function renderEventPage(code) {
 async function startClientEvent(code) {
   const e = await DB.get('events/' + code); if (!e) return;
   try { await document.documentElement.requestFullscreen(); } catch (er) {}
-  return startSet({ title: e.title, questions: e.questions, settings: e.settings }, { event: { code, logo: e.logo, title: e.title }, onExit: () => renderEventPage(code) });
+  return startSet({ title: e.title, questions: e.questions, settings: e.settings }, { event: { code, logo: e.logo, title: e.title }, ad: e.ad || null, onExit: () => renderEventPage(code) });
 }
 
 /* ====================== מסך המנחה (המחשב) ====================== */
@@ -1927,6 +2026,8 @@ async function startSet(set, opts = {}) {
   }
   await DB.remove(`games/${code}`);
   H = { code, title: set.title, qs, cfg, qi: -1, players: {}, answers: {}, state: 'lobby', streak: {}, delta: {}, setId: opts.setId || null, event: opts.event || null, onExit: opts.onExit || null, logo: (opts.event && opts.event.logo) || cfg.logo || null, runId: rid(), startedAt: Date.now(), qStats: [], pstat: {} };
+  const ad = opts.ad !== undefined ? opts.ad : loadAd();
+  H.ad = cfg.showAd !== false && adHas(ad) ? ad : null;
   await DB.set(gp('meta'), {
     state: 'lobby', title: set.title, total: qs.length, created: DB.now(), remoteView: !!cfg.remoteView,
     cfg: { maxPlayers: cfg.maxPlayers, lateJoin: cfg.lateJoin, feedback: cfg.showAnswersPhone, streak: cfg.showStreak, scoring: cfg.scoring, theme: cfg.theme, icons: cfg.djIcons, brand: cfg.theme === 'brand' ? cfg.brand || null : null, joinMode: cfg.joinMode, nums: cfg.ansLabels === 'numbers' }
@@ -1963,7 +2064,7 @@ function stageTop(right) {
 }
 // קוד המשחק תמיד בפינה — מי שהשיחה שלו נותקה או שיצא מהאפליקציה יכול לחזור (במסך ההמתנה הקוד כבר מופיע בגדול)
 function codePill() {
-  if (H.state === 'lobby' || H.cfg.joinMode === 'clickers') return '';
+  if (H.state === 'lobby' || H.state === 'end' || H.cfg.joinMode === 'clickers') return '';
   return `<span class="pill codepill">${H.cfg.joinMode !== 'app' ? `📞 ${PHONE_LINE} · ` : ''}קוד המשחק: <b>${H.code}</b></span>`;
 }
 function toggleFS() { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
@@ -2017,8 +2118,10 @@ function renderLobby() {
         <div class="hint" style="color:#fff;opacity:.7;margin-top:10px">✏️ שינוי שם · ✕ הוצאה מהמשחק</div>
       </div>
     </div>
+    ${adStrip()}
     <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="nextQ()" disabled>התחלת המשחק ▶</button></div>
   </div>`;
+  hydrateMedia(app);
   if ($('qr')) try { new QRCode($('qr'), { text: url, width: 230, height: 230 }); } catch (e) {}
   if (H.cfg.remoteView) try { new QRCode($('wqr'), { text: wurl, width: 90, height: 90 }); } catch (e) {}
   onPlayers();
@@ -2299,7 +2402,7 @@ async function finish() {
   clearInterval(H.timer);
   Music.stop();
   const all = sortedPlayers(), show = H.cfg.boardWhen !== 'never';
-  await DB.update(gp('meta'), { state: 'end', board: show ? boardData(all.slice(0, 10)) : null });
+  await DB.update(gp('meta'), { state: 'end', board: show ? boardData(all.slice(0, 10)) : null, ad: H.ad && H.ad.phone_end ? { ...adPublic(H.ad), say: adSay(H.ad) } : null });
   const pod = (k, h, color) => all[k] ? `<div class="pod"><div class="nm">${esc(all[k][1].name)}</div><div class="sc">${all[k][1].score || 0} נקודות</div><div class="blk" style="height:${h}px;background:${color}">${k + 1}</div></div>` : '';
   const rest = H.cfg.showBoard && all.length > 3 ? `<div class="biglist">${all.slice(3).map(([, p], k) => `<div><span><b>${k + 4}</b> ${esc(p.name)}</span><span>${p.score || 0}</span></div>`).join('')}</div>` : '';
   app.innerHTML = `<div class="stage">
@@ -2308,7 +2411,8 @@ async function finish() {
     <div class="board" style="text-align:center"><h2>🏆 המנצחים 🏆</h2></div>
     <div class="podium">${pod(1, 200, '#c0c0c0')}${pod(0, 280, '#ffcc00')}${pod(2, 140, '#cd7f32')}</div>
     ${rest}` : `<div class="board" style="text-align:center;flex:1"><h2>🎉 המשחק נגמר!</h2><div style="font-size:26px">תודה לכל המשתתפים</div></div>`}
-    <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="endHost()">${H.onExit ? 'סיום' : 'סיום וחזרה למסך הראשי'}</button></div>
+    <div class="stage-bottom"><span></span>${slogan()}${H.ad && H.ad.end ? '<button class="btn primary big" id="main" onclick="showAdScreen()">המשך ▶</button>'
+      : `<button class="btn primary big" id="main" onclick="endHost()">${H.onExit ? 'סיום' : 'סיום וחזרה למסך הראשי'}</button>`}</div>
   </div>`;
   confetti();
   [523, 659, 784, 1046].forEach((f, k) => setTimeout(() => beep(f, .25, 'triangle', .15), k * 160));
@@ -2431,6 +2535,7 @@ function renderPlayer() {
     const medal = r ? (['🥇', '🥈', '🥉'][r.rank - 1] || '🎉') : '🎉';
     body = `${djLogo()}<div class="ico" style="font-size:90px">${medal}</div>${slogan()}<div class="pbig">המשחק נגמר!</div>
       ${r ? `<div class="psub">מקום <b>${r.rank}</b> מתוך ${r.of}<br>${r.score} נקודות</div>` : ''}
+      ${m.ad ? `<div class="pad">${m.ad.media && m.ad.media.kind === 'image' ? `<img src="${esc(m.ad.media.src)}" alt="">` : ''}${m.ad.title ? `<b>${esc(m.ad.title)}</b>` : ''}${adContacts(m.ad)}</div>` : ''}
       <button class="btn ghost" onclick="PSTORE.removeItem(SESS_KEY);playerJoinScreen('')">משחק חדש</button>`;
   }
   app.innerHTML = `<div class="pwrap">${m.state === 'question' && P.answeredI !== m.i ? '' : pTop()}${body}</div>`;
