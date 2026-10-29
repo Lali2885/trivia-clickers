@@ -283,11 +283,11 @@ body:not(.admin) #cloudst{display:none}
 .adbox iframe.adm{height:22vh;aspect-ratio:16/9;border:0}
 .adt{font-size:clamp(18px,2.8vh,28px);font-weight:800}
 .adp{font-size:clamp(22px,3.6vh,36px);font-weight:900;direction:ltr;display:inline-block}
-.adscreen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:0;text-align:center}
-.adscreen .adm{max-height:50vh;max-width:90vw;border-radius:16px;object-fit:contain}
-.adscreen iframe.adm{height:50vh;aspect-ratio:16/9;border:0}
-.adscreen .adt{font-size:clamp(26px,4.6vh,50px)}
-.adrow{display:flex;gap:28px;align-items:center;justify-content:center;flex-wrap:wrap}
+.adscreen{flex:1;display:flex;align-items:center;justify-content:center;gap:48px;min-height:0;text-align:center;margin:12px 0}
+.adscreen .adm{max-height:calc(100vh - 190px);max-width:55vw;border-radius:16px;object-fit:contain}
+.adscreen iframe.adm{height:min(60vh,30vw);aspect-ratio:16/9;border:0}
+.adscreen .adt{font-size:clamp(24px,4.2vh,46px)}
+.adinfo{display:flex;flex-direction:column;align-items:center;gap:14px;max-width:38vw}
 .adqr{background:#fff;padding:10px;border-radius:12px}
 .pad{background:rgba(255,255,255,.12);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .pad img{max-width:100%;max-height:30vh;object-fit:contain;border-radius:12px;align-self:center}
@@ -871,18 +871,33 @@ function joinBase() { return location.href.split('?')[0].split('#')[0]; }
 
 /* ====================== הפרסום שלי (מסך ההמתנה, מסך אחרי המנצחים, הטלפון של המשתתפים) ====================== */
 const AD_KEY = 'trivia_ad';
-const AD_DEFAULT = { media: null, title: '', phone: '', wa: '', site: '', say: '', lobby: true, end: true, phone_end: true };
-function loadAd() { try { return { ...AD_DEFAULT, ...(JSON.parse(localStorage.getItem(AD_KEY)) || {}) }; } catch (e) { return { ...AD_DEFAULT }; } }
-function saveAd(ad) {
-  ad.updatedAt = Date.now();
-  localStorage.setItem(AD_KEY, JSON.stringify(ad));
-  if (Cloud.on) { DB.set('admin/ad', ad).catch(() => {}); if (ad.media && String(ad.media.src).startsWith('idb:')) Cloud.uploadMedia(ad.media.src.slice(4)); }
+// ברירת המחדל: הפרסום של ללי מתיקיית הפרסום (הקבצים יושבים באתר עצמו בתיקייה ad/, כך שהם מופיעים גם בטלפונים ובמחשב של לקוח)
+// media = מסך אחרי המנצחים (סרטון), img = מסך ההמתנה והטלפון של המשתתפים
+const AD_DEFAULT = {
+  media: { kind: 'video', src: 'ad/dj-video.mp4' }, img: { kind: 'image', src: 'ad/dj-square.png' },
+  title: 'ללי שטרן – DJ לאירועי נשים ובנות', phone: '052-7174317', wa: '', site: '',
+  say: "ללי שטרן מוזיקה בקצב, די ג'יי לאירועי נשים ובנות. להזמנת אירוע חייגו 0 5 2 7 1 7 4 3 1 7",
+  lobby: true, end: true, phone_end: true
+};
+function loadAd() {
+  let st = {}; try { st = JSON.parse(localStorage.getItem(AD_KEY)) || {}; } catch (e) {}
+  // פרסום שנשמר לפני שהיו ברירות מחדל — שדות ריקים מתמלאים מהן (אחרי שמירה ראשונה, ריק נשאר ריק)
+  if (!st.seeded) Object.keys(st).forEach(k => { if (st[k] === '' || st[k] == null) delete st[k]; });
+  return { ...AD_DEFAULT, ...st };
 }
-const adHas = ad => !!ad && !!(ad.media || ad.title || ad.phone || ad.site);
+function saveAd(ad) {
+  ad.updatedAt = Date.now(); ad.seeded = true;
+  localStorage.setItem(AD_KEY, JSON.stringify(ad));
+  if (Cloud.on) { DB.set('admin/ad', ad).catch(() => {}); [ad.media, ad.img].forEach(m => { if (m && String(m.src).startsWith('idb:')) Cloud.uploadMedia(m.src.slice(4)); }); }
+}
+const adHas = ad => !!ad && !!(ad.media || ad.img || ad.title || ad.phone || ad.site);
 const siteUrl = u => !u ? '' : /^https?:/i.test(u) ? u : 'https://' + u;
 const waLink = n => { const d = normPhone(n); return d ? 'https://wa.me/972' + d.slice(1) : ''; };
 // מה שעובר לטלפונים ולמחשב של לקוח: קובץ מהמחשב (idb:) לא נגיש שם — רק מדיה מקישור
-const adPublic = ad => ({ ...ad, media: ad.media && !String(ad.media.src).startsWith('idb:') ? ad.media : null });
+const isPub = m => m && !String(m.src).startsWith('idb:') ? m : null;
+const adPublic = ad => ({ ...ad, media: isPub(ad.media), img: isPub(ad.img) });
+// תמונה לטלפון: התמונה של ההמתנה, ואם אין — המדיה של מסך הסיום אם היא תמונה
+const adPhoneImg = ad => [ad.img, ad.media].find(m => m && m.kind === 'image' && isPub(m)) || null;
 function adSay(ad) {
   if (ad.say) return ad.say;
   const d = normPhone(ad.phone);
@@ -896,15 +911,15 @@ function adContacts(ad) {
 const adText = ad => `${ad.title ? `<div class="adt">${esc(ad.title)}</div>` : ''}${ad.phone ? `<div class="adp">📞 ${esc(ad.phone)}</div>` : ''}${ad.site ? `<div class="adt" dir="ltr">${esc(ad.site)}</div>` : ''}`;
 function adStrip() {
   const ad = H.ad; if (!ad || !ad.lobby) return '';
-  return `<div class="adbox">${mediaHtml(ad.media, 'adm', { muted: true })}<div>${adText(ad)}</div></div>`;
+  return `<div class="adbox">${mediaHtml(ad.img || ad.media, 'adm', { muted: true })}<div>${adText(ad)}</div></div>`;
 }
 function showAdScreen() {
   const ad = H.ad, link = waLink(ad.wa || ad.phone) || siteUrl(ad.site);
   app.innerHTML = `<div class="stage">
     ${stageTop()}
     <div class="adscreen">
-      ${mediaHtml(ad.media, 'adm', { auto: true })}
-      <div class="adrow">${link ? '<div class="adqr" id="adqr"></div>' : ''}<div>${adText(ad)}</div></div>
+      ${mediaHtml(ad.media || ad.img, 'adm', { auto: true })}
+      <div class="adinfo">${adText(ad)}${link ? '<div class="adqr" id="adqr"></div><div class="adt" style="font-size:clamp(15px,2.2vh,20px);opacity:.8">סרקו לפרטים בוואטסאפ</div>' : ''}</div>
     </div>
     <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="endHost()">${H.onExit ? 'סיום' : 'סיום וחזרה למסך הראשי'}</button></div>
   </div>`;
@@ -922,29 +937,36 @@ function renderAdBox() {
   const t = (k, label) => `<label class="tog"><input type="checkbox" ${a[k] ? 'checked' : ''} onchange="AD_EDIT.${k}=this.checked"><span class="sw"></span>${label}</label>`;
   d.innerHTML = `<div class="nb"><h3>📣 הפרסום שלי</h3>
     <div class="hint">מופיע בכל המשחקים. במשחק מסוים אפשר לכבות אותו בלשונית "הגדרות" של המשחק.</div>
-    <div class="mrow">${a.media ? `<span class="athumb">${mediaHtml(a.media, 'thumb')}<button class="x" title="הסרה" onclick="AD_EDIT.media=null;renderAdBox()">✕</button></span>`
-      : `<button class="mb" onclick="$('adfile').click()">🖼 תמונה / סרטון מהמחשב</button><button class="mb" onclick="adLink()">🔗 קישור (גם YouTube)</button>`}
-      <input type="file" id="adfile" accept="image/*,video/*" hidden onchange="adPicked(this)"></div>
-    ${a.media && String(a.media.src).startsWith('idb:') ? '<div class="hint">קובץ מהמחשב מוצג במסך הגדול. בטלפונים של המשתתפים ובאירוע שהלקוח מפעיל אצלו תוצג תמונה רק אם היא מקישור.</div>' : ''}
+    ${adSlot(a, 'img', 'למסך ההמתנה ולטלפון של המשתתפים (עדיף תמונה)')}
+    ${adSlot(a, 'media', 'למסך שאחרי המנצחים (תמונה או סרטון)')}
+    <input type="file" id="adfile" accept="image/*,video/*" hidden onchange="adPicked(this)">
+    ${[a.media, a.img].some(m => m && String(m.src).startsWith('idb:')) ? '<div class="hint">קובץ מהמחשב מוצג במסך הגדול. בטלפונים של המשתתפים ובאירוע שהלקוח מפעיל אצלו מופיעה רק מדיה מקישור.</div>' : ''}
     <div class="frow" style="margin-top:12px">${f('title', 'שורת פרסום', 'ללי שטרן – מוזיקה בקצב לכל אירוע')}</div>
     <div class="frow">${f('phone', 'טלפון להזמנות', '050-1234567', 1)}${f('wa', 'וואטסאפ (אם שונה מהטלפון)', '', 1)}</div>
     <div class="frow">${f('site', 'אתר / אינסטגרם', 'www.example.co.il', 1)}</div>
     <div class="frow">${f('say', 'משפט בסוף שיחת טלפון', adSay(a) || 'נבנה לבד משורת הפרסום והטלפון')}</div>
     <div class="togs">${t('lobby', 'במסך ההמתנה (בזמן שמתחברים)')}${t('end', 'מסך פרסום אחרי המנצחים')}${t('phone_end', 'בטלפון של המשתתפים בסוף (כפתורי חיוג / וואטסאפ, והודעה בשיחה)')}</div>
-    <div class="frow" style="margin-top:14px"><button class="btn primary" onclick="saveAd(AD_EDIT);$('adbox').remove()">שמירה</button><button class="btn" onclick="$('adbox').remove()">ביטול</button></div></div>`;
+    <div class="frow" style="margin-top:14px"><button class="btn primary" onclick="saveAd(AD_EDIT);$('adbox').remove()">שמירה</button><button class="btn" onclick="$('adbox').remove()">ביטול</button><button class="btn ghost" onclick="adReset()">↺ הפרסום המקורי</button></div></div>`;
   hydrateMedia(d);
+}
+let AD_SLOT = 'media';
+function adSlot(a, k, label) {
+  const m = a[k];
+  return `<div class="mrow"><b style="min-width:100%">${label}</b>${m ? `<span class="athumb">${mediaHtml(m, 'thumb')}<button class="x" title="הסרה" onclick="AD_EDIT.${k}=null;renderAdBox()">✕</button></span>`
+    : `<button class="mb" onclick="AD_SLOT='${k}';$('adfile').click()">🖼 תמונה / סרטון מהמחשב</button><button class="mb" onclick="adLink('${k}')">🔗 קישור (גם YouTube)</button>`}</div>`;
 }
 async function adPicked(inp) {
   const f = inp.files[0]; inp.value = ''; if (!f) return;
   if (f.size > Cloud.MAX) return alert('הקובץ גדול מדי (מעל 60MB)');
-  AD_EDIT.media = { kind: f.type.startsWith('video') ? 'video' : 'image', src: await Media.put(f) };
+  AD_EDIT[AD_SLOT] = { kind: f.type.startsWith('video') ? 'video' : 'image', src: await Media.put(f) };
   renderAdBox();
 }
-function adLink() {
+function adLink(k) {
   const u = (prompt('הדביקי קישור לתמונה, לסרטון או ל-YouTube:') || '').trim(); if (!u) return;
-  AD_EDIT.media = { kind: ytId(u) ? 'youtube' : /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? 'video' : 'image', src: u };
+  AD_EDIT[k] = { kind: ytId(u) ? 'youtube' : /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? 'video' : 'image', src: u };
   renderAdBox();
 }
+function adReset() { if (confirm('להחזיר את הפרסום המקורי (הסרטון, הפוסט והטקסטים)?')) { AD_EDIT = { ...AD_DEFAULT }; renderAdBox(); } }
 
 // מנקה שאלות לפני משחק: מוריד תשובות ריקות (בלי טקסט ובלי תמונה) ומעדכן את אינדקס התשובה הנכונה
 function normQs(qs) {
@@ -1935,7 +1957,7 @@ async function renderEventPage(code) {
 async function startClientEvent(code) {
   const e = await DB.get('events/' + code); if (!e) return;
   try { await document.documentElement.requestFullscreen(); } catch (er) {}
-  return startSet({ title: e.title, questions: e.questions, settings: e.settings }, { event: { code, logo: e.logo, title: e.title }, ad: e.ad || null, onExit: () => renderEventPage(code) });
+  return startSet({ title: e.title, questions: e.questions, settings: e.settings }, { event: { code, logo: e.logo, title: e.title }, ad: e.ad || adPublic(AD_DEFAULT), onExit: () => renderEventPage(code) });
 }
 
 /* ====================== מסך המנחה (המחשב) ====================== */
@@ -2535,7 +2557,7 @@ function renderPlayer() {
     const medal = r ? (['🥇', '🥈', '🥉'][r.rank - 1] || '🎉') : '🎉';
     body = `${djLogo()}<div class="ico" style="font-size:90px">${medal}</div>${slogan()}<div class="pbig">המשחק נגמר!</div>
       ${r ? `<div class="psub">מקום <b>${r.rank}</b> מתוך ${r.of}<br>${r.score} נקודות</div>` : ''}
-      ${m.ad ? `<div class="pad">${m.ad.media && m.ad.media.kind === 'image' ? `<img src="${esc(m.ad.media.src)}" alt="">` : ''}${m.ad.title ? `<b>${esc(m.ad.title)}</b>` : ''}${adContacts(m.ad)}</div>` : ''}
+      ${m.ad ? `<div class="pad">${adPhoneImg(m.ad) ? `<img src="${esc(adPhoneImg(m.ad).src)}" alt="">` : ''}${m.ad.title ? `<b>${esc(m.ad.title)}</b>` : ''}${adContacts(m.ad)}</div>` : ''}
       <button class="btn ghost" onclick="PSTORE.removeItem(SESS_KEY);playerJoinScreen('')">משחק חדש</button>`;
   }
   app.innerHTML = `<div class="pwrap">${m.state === 'question' && P.answeredI !== m.i ? '' : pTop()}${body}</div>`;
