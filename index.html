@@ -881,6 +881,13 @@ const AD_DEFAULT = {
   say: "ללי שטרן מוזיקה בקצב, די ג'יי לאירועי נשים ובנות. להזמנת אירוע חייגו 0 5 2 7 1 7 4 3 1 7",
   lobby: true, end: true, phone_end: true
 };
+// חלופה: פרסום של הטריוויה עצמה (לבחירה בהגדרות של כל משחק). הטלפון והמתגים נלקחים מ"הפרסום שלי"
+const AD_TRIVIA = {
+  media: { kind: 'video', src: 'ad/trivia-video.mp4' }, img: { kind: 'image', src: 'ad/trivia-strip.png' }, pimg: { kind: 'image', src: 'ad/trivia-square.png' },
+  title: 'טריוויה קליקרים – כל הקהל משחק מכל טלפון',
+  say: 'רוצות את המשחק הזה באירוע שלכן? טריוויה קליקרים של ללי שטרן. להזמנת אירוע חייגו 0 5 2 7 1 7 4 3 1 7'
+};
+const adFor = (profile, base = loadAd()) => profile === 'trivia' ? { ...base, ...AD_TRIVIA } : base;
 function loadAd() {
   let st = {}; try { st = JSON.parse(localStorage.getItem(AD_KEY)) || {}; } catch (e) {}
   // פרסום שנשמר לפני שהיו ברירות מחדל — שדות ריקים מתמלאים מהן (אחרי שמירה ראשונה, ריק נשאר ריק)
@@ -993,7 +1000,7 @@ const qType = q => q.poll ? 'poll' : q.tf ? 'tf' : 'mc';
 /* ====================== הגדרות משחק ====================== */
 const DEFAULT_SETTINGS = {
   theme: 'classic', djIcons: DJ_DEFAULT_ICONS, joinMode: 'callapp', qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
-  showAnswersPhone: true, lateJoin: true, ansLabels: 'shapes', showAd: true,
+  showAnswersPhone: true, lateJoin: true, ansLabels: 'shapes', showAd: true, adProfile: 'dj',
   scoring: 'speed', boardWhen: 'each', boardEvery: 3, resultsSec: 10,
   showCorrect: true, showFastest: true, showBoard: true, showRankChange: true, showStreak: true, autoNext: false,
   remoteView: false
@@ -1304,6 +1311,7 @@ function settingsHtml() {
       ${c.music === 'file' ? `<div class="mrow">${c.musicFile ? `🎵 ${esc(c.musicFile.name || 'קובץ מוזיקה')} <button class="mb" onclick="setS('musicFile',null,true)">הסרה</button>` : `<button class="mb" onclick="$('afile').click()">בחירת קובץ מוזיקה מהמחשב</button>`}<input type="file" id="afile" accept="audio/*" hidden onchange="musicPicked(this)"></div>` : ''}
       <div class="frow" style="margin-top:12px"><label class="fld"><span>מי משתתף</span><select onchange="setS('joinMode',this.value,true)">${joinOpts(c.joinMode)}</select></label></div>
       <div class="togs">${tog('showAnswersPhone', 'להראות למשתתפים בטלפון אם צדקו')}${tog('lateJoin', 'אפשר הצטרפות מאוחרת')}${tog('showAd', '📣 להציג את הפרסום שלי')}</div>
+      <div class="frow" style="margin-top:12px">${sel('adProfile', 'איזה פרסום להציג', [['dj', '🎧 DJ (הפרסום שלי)'], ['trivia', '❓ טריוויה קליקרים']])}</div>
     </div>
     <div class="scard">
       <h3>ניקוד ותוצאות</h3>
@@ -1917,7 +1925,7 @@ async function saveEventRec(clean, stay) {
       if (await DB.get('events/' + code)) { alert(`הקוד ${code} כבר תפוס. בחרי קוד אחר.`); return false; }
     }
     const rec = { code, title: clean.title, client: v.client.trim(), from: v.from || '', to: v.to || '', logo: v.logo || null,
-      questions: clean.questions, settings: clean.settings, ad: adHas(loadAd()) ? adPublic(loadAd()) : null, updatedAt: Date.now() };
+      questions: clean.questions, settings: clean.settings, ad: (a => adHas(a) ? adPublic(a) : null)(adFor(clean.settings && clean.settings.adProfile)), updatedAt: Date.now() };
     if (!v.origCode) rec.createdAt = Date.now();
     await DB.update('events/' + code, rec);
     if (v.origCode && v.origCode !== code) {
@@ -1961,7 +1969,7 @@ async function renderEventPage(code) {
 async function startClientEvent(code) {
   const e = await DB.get('events/' + code); if (!e) return;
   try { await document.documentElement.requestFullscreen(); } catch (er) {}
-  return startSet({ title: e.title, questions: e.questions, settings: e.settings }, { event: { code, logo: e.logo, title: e.title }, ad: e.ad || adPublic(AD_DEFAULT), onExit: () => renderEventPage(code) });
+  return startSet({ title: e.title, questions: e.questions, settings: e.settings }, { event: { code, logo: e.logo, title: e.title }, ad: e.ad || adPublic(adFor(e.settings && e.settings.adProfile, AD_DEFAULT)), onExit: () => renderEventPage(code) });
 }
 
 /* ====================== מסך המנחה (המחשב) ====================== */
@@ -2052,7 +2060,7 @@ async function startSet(set, opts = {}) {
   }
   await DB.remove(`games/${code}`);
   H = { code, title: set.title, qs, cfg, qi: -1, players: {}, answers: {}, state: 'lobby', streak: {}, delta: {}, setId: opts.setId || null, event: opts.event || null, onExit: opts.onExit || null, logo: (opts.event && opts.event.logo) || cfg.logo || null, runId: rid(), startedAt: Date.now(), qStats: [], pstat: {} };
-  const ad = opts.ad !== undefined ? opts.ad : loadAd();
+  const ad = opts.ad !== undefined ? opts.ad : adFor(cfg.adProfile);
   H.ad = cfg.showAd !== false && adHas(ad) ? ad : null;
   await DB.set(gp('meta'), {
     state: 'lobby', title: set.title, total: qs.length, created: DB.now(), remoteView: !!cfg.remoteView,
