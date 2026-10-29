@@ -281,6 +281,8 @@ body:not(.admin) #cloudst{display:none}
 .adbox{display:flex;gap:18px;align-items:center;justify-content:center;background:rgba(255,255,255,.12);border-radius:16px;padding:12px 18px;margin-top:14px}
 .adbox .adm{max-height:22vh;max-width:40%;border-radius:10px;object-fit:contain}
 .adbox iframe.adm{height:22vh;aspect-ratio:16/9;border:0}
+.adbox.wide{padding:0;background:none}
+.adbox.wide .adm{max-width:100%;max-height:18vh;border-radius:14px}
 .adt{font-size:clamp(18px,2.8vh,28px);font-weight:800}
 .adp{font-size:clamp(22px,3.6vh,36px);font-weight:900;direction:ltr;display:inline-block}
 .adscreen{flex:1;display:flex;align-items:center;justify-content:center;gap:48px;min-height:0;text-align:center;margin:12px 0}
@@ -872,9 +874,9 @@ function joinBase() { return location.href.split('?')[0].split('#')[0]; }
 /* ====================== הפרסום שלי (מסך ההמתנה, מסך אחרי המנצחים, הטלפון של המשתתפים) ====================== */
 const AD_KEY = 'trivia_ad';
 // ברירת המחדל: הפרסום של ללי מתיקיית הפרסום (הקבצים יושבים באתר עצמו בתיקייה ad/, כך שהם מופיעים גם בטלפונים ובמחשב של לקוח)
-// media = מסך אחרי המנצחים (סרטון), img = מסך ההמתנה והטלפון של המשתתפים
+// media = מסך אחרי המנצחים (סרטון), img = פס רחב למסך ההמתנה, pimg = תמונה לטלפון של המשתתפים
 const AD_DEFAULT = {
-  media: { kind: 'video', src: 'ad/dj-video.mp4' }, img: { kind: 'image', src: 'ad/dj-square.png' },
+  media: { kind: 'video', src: 'ad/dj-video.mp4' }, img: { kind: 'image', src: 'ad/dj-strip.png' }, pimg: { kind: 'image', src: 'ad/dj-square.png' },
   title: 'ללי שטרן – DJ לאירועי נשים ובנות', phone: '052-7174317', wa: '', site: '',
   say: "ללי שטרן מוזיקה בקצב, די ג'יי לאירועי נשים ובנות. להזמנת אירוע חייגו 0 5 2 7 1 7 4 3 1 7",
   lobby: true, end: true, phone_end: true
@@ -888,16 +890,16 @@ function loadAd() {
 function saveAd(ad) {
   ad.updatedAt = Date.now(); ad.seeded = true;
   localStorage.setItem(AD_KEY, JSON.stringify(ad));
-  if (Cloud.on) { DB.set('admin/ad', ad).catch(() => {}); [ad.media, ad.img].forEach(m => { if (m && String(m.src).startsWith('idb:')) Cloud.uploadMedia(m.src.slice(4)); }); }
+  if (Cloud.on) { DB.set('admin/ad', ad).catch(() => {}); [ad.media, ad.img, ad.pimg].forEach(m => { if (m && String(m.src).startsWith('idb:')) Cloud.uploadMedia(m.src.slice(4)); }); }
 }
-const adHas = ad => !!ad && !!(ad.media || ad.img || ad.title || ad.phone || ad.site);
+const adHas = ad => !!ad && !!(ad.media || ad.img || ad.pimg || ad.title || ad.phone || ad.site);
 const siteUrl = u => !u ? '' : /^https?:/i.test(u) ? u : 'https://' + u;
 const waLink = n => { const d = normPhone(n); return d ? 'https://wa.me/972' + d.slice(1) : ''; };
 // מה שעובר לטלפונים ולמחשב של לקוח: קובץ מהמחשב (idb:) לא נגיש שם — רק מדיה מקישור
 const isPub = m => m && !String(m.src).startsWith('idb:') ? m : null;
-const adPublic = ad => ({ ...ad, media: isPub(ad.media), img: isPub(ad.img) });
-// תמונה לטלפון: התמונה של ההמתנה, ואם אין — המדיה של מסך הסיום אם היא תמונה
-const adPhoneImg = ad => [ad.img, ad.media].find(m => m && m.kind === 'image' && isPub(m)) || null;
+const adPublic = ad => ({ ...ad, media: isPub(ad.media), img: isPub(ad.img), pimg: isPub(ad.pimg) });
+// תמונה לטלפון: התמונה שנבחרה לטלפון, ואם אין — של ההמתנה או של מסך הסיום
+const adPhoneImg = ad => [ad.pimg, ad.img, ad.media].find(m => m && m.kind === 'image' && isPub(m)) || null;
 function adSay(ad) {
   if (ad.say) return ad.say;
   const d = normPhone(ad.phone);
@@ -911,7 +913,8 @@ function adContacts(ad) {
 const adText = ad => `${ad.title ? `<div class="adt">${esc(ad.title)}</div>` : ''}${ad.phone ? `<div class="adp">📞 ${esc(ad.phone)}</div>` : ''}${ad.site ? `<div class="adt" dir="ltr">${esc(ad.site)}</div>` : ''}`;
 function adStrip() {
   const ad = H.ad; if (!ad || !ad.lobby) return '';
-  return `<div class="adbox">${mediaHtml(ad.img || ad.media, 'adm', { muted: true })}<div>${adText(ad)}</div></div>`;
+  return ad.img ? `<div class="adbox wide">${mediaHtml(ad.img, 'adm', { muted: true })}</div>`
+    : `<div class="adbox">${mediaHtml(ad.media, 'adm', { muted: true })}<div>${adText(ad)}</div></div>`;
 }
 function showAdScreen() {
   const ad = H.ad, link = waLink(ad.wa || ad.phone) || siteUrl(ad.site);
@@ -937,10 +940,11 @@ function renderAdBox() {
   const t = (k, label) => `<label class="tog"><input type="checkbox" ${a[k] ? 'checked' : ''} onchange="AD_EDIT.${k}=this.checked"><span class="sw"></span>${label}</label>`;
   d.innerHTML = `<div class="nb"><h3>📣 הפרסום שלי</h3>
     <div class="hint">מופיע בכל המשחקים. במשחק מסוים אפשר לכבות אותו בלשונית "הגדרות" של המשחק.</div>
-    ${adSlot(a, 'img', 'למסך ההמתנה ולטלפון של המשתתפים (עדיף תמונה)')}
+    ${adSlot(a, 'img', 'למסך ההמתנה — פס רחב (הטקסט שלמטה לא מוצג לידו)')}
     ${adSlot(a, 'media', 'למסך שאחרי המנצחים (תמונה או סרטון)')}
+    ${adSlot(a, 'pimg', 'לטלפון של המשתתפים (תמונה)')}
     <input type="file" id="adfile" accept="image/*,video/*" hidden onchange="adPicked(this)">
-    ${[a.media, a.img].some(m => m && String(m.src).startsWith('idb:')) ? '<div class="hint">קובץ מהמחשב מוצג במסך הגדול. בטלפונים של המשתתפים ובאירוע שהלקוח מפעיל אצלו מופיעה רק מדיה מקישור.</div>' : ''}
+    ${[a.media, a.img, a.pimg].some(m => m && String(m.src).startsWith('idb:')) ? '<div class="hint">קובץ מהמחשב מוצג במסך הגדול. בטלפונים של המשתתפים ובאירוע שהלקוח מפעיל אצלו מופיעה רק מדיה מקישור.</div>' : ''}
     <div class="frow" style="margin-top:12px">${f('title', 'שורת פרסום', 'ללי שטרן – מוזיקה בקצב לכל אירוע')}</div>
     <div class="frow">${f('phone', 'טלפון להזמנות', '050-1234567', 1)}${f('wa', 'וואטסאפ (אם שונה מהטלפון)', '', 1)}</div>
     <div class="frow">${f('site', 'אתר / אינסטגרם', 'www.example.co.il', 1)}</div>
@@ -966,7 +970,7 @@ function adLink(k) {
   AD_EDIT[k] = { kind: ytId(u) ? 'youtube' : /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) ? 'video' : 'image', src: u };
   renderAdBox();
 }
-function adReset() { if (confirm('להחזיר את הפרסום המקורי (הסרטון, הפוסט והטקסטים)?')) { AD_EDIT = { ...AD_DEFAULT }; renderAdBox(); } }
+function adReset() { if (confirm('להחזיר את הפרסום המקורי (הסרטון, הפס, הפוסט והטקסטים)?')) { AD_EDIT = { ...AD_DEFAULT }; renderAdBox(); } }
 
 // מנקה שאלות לפני משחק: מוריד תשובות ריקות (בלי טקסט ובלי תמונה) ומעדכן את אינדקס התשובה הנכונה
 function normQs(qs) {
