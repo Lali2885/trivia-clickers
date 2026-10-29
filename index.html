@@ -98,7 +98,7 @@ body.theme-dj{--bg:#11171c;--bg2:#263238;--primary:#25BDF0;--bad:#F05235;--ok:#1
 .theme-dj .chip{border-inline-start:5px solid #25BDF0}
 .theme-dj .djlogo{display:block;background:#fff;border-radius:16px;padding:8px 14px}
 .theme-dj .djlogo img{display:block;width:100%;height:auto}
-.theme-dj .joinbox .djlogo{width:250px;margin:0 auto 10px;padding:0}
+.theme-dj .joinbox .djlogo{width:min(250px,30vh);margin:0 auto 10px;padding:0}
 .theme-dj .stage-top .djlogo{width:120px;padding:4px 8px;border-radius:10px}
 .theme-dj .pwrap .djlogo{width:240px;margin:0 auto}
 .theme-dj .pwrap .logo{display:none}
@@ -234,8 +234,8 @@ body:not(.admin) #cloudst{display:none}
 #cloudst.busy{background:#fff4d6;color:#8a6200}
 #cloudst.bad{background:#fde8e6;color:#c0392b}
 .pbook{width:100%;box-sizing:border-box;font:inherit;font-size:15px;border:1px solid #dfe6ea;border-radius:10px;padding:10px;margin:8px 0;resize:vertical}
-.callbox .tel{font-size:46px;font-weight:900;color:var(--bg2);direction:ltr;line-height:1.15;white-space:nowrap;margin:6px 0}
-.callbox.big .tel{font-size:72px}
+.callbox .tel{font-size:clamp(26px,6vh,46px);font-weight:900;color:var(--bg2);direction:ltr;line-height:1.15;white-space:nowrap;margin:6px 0}
+.callbox.big .tel{font-size:clamp(34px,9vh,72px)}
 .callbox.big{padding:10px 6px 4px}
 .jboth{display:flex;gap:22px;align-items:center;justify-content:center}
 .jboth .jcol{flex:1}
@@ -260,11 +260,13 @@ body:not(.admin) #cloudst{display:none}
 .codepill{font-size:clamp(15px,2.2vh,20px)}
 .codepill b{font-size:1.35em;letter-spacing:2px;margin-inline-start:4px}
 .pill{background:rgba(255,255,255,.15);border-radius:999px;padding:8px 16px;font-weight:700}
-.lobby{flex:1;display:grid;grid-template-columns:auto 1fr;gap:36px;align-items:center;margin-top:20px}
-.joinbox{background:#fff;color:var(--ink);border-radius:20px;padding:24px;text-align:center}
-.joinbox .lbl{color:var(--muted);font-size:16px}
-.joinbox .code{font-size:84px;font-weight:900;letter-spacing:8px;color:var(--bg2);line-height:1.1;direction:ltr}
-#qr{display:flex;justify-content:center;margin:12px 0}
+.lobby{flex:1;display:grid;grid-template-columns:auto 1fr;gap:36px;align-items:center;margin-top:clamp(8px,2vh,20px);min-height:0}
+.stage.lobbyst{height:100vh;min-height:0;overflow:hidden}
+.joinbox{background:#fff;color:var(--ink);border-radius:20px;padding:clamp(10px,2.4vh,24px) 24px;text-align:center}
+.joinbox .lbl{color:var(--muted);font-size:clamp(13px,2.1vh,16px)}
+.joinbox .code{font-size:clamp(40px,10vh,84px);font-weight:900;letter-spacing:8px;color:var(--bg2);line-height:1.1;direction:ltr}
+#qr{display:flex;justify-content:center;margin:clamp(4px,1.4vh,12px) 0}
+#qr img,#qr canvas{width:min(230px,24vh)!important;height:auto!important}
 .joinbox .url{font-size:13px;color:var(--muted);word-break:break-all;max-width:260px;margin:auto;direction:ltr}
 .lobby-r h2{font-size:34px;margin:0 0 14px}
 .chips{display:flex;flex-wrap:wrap;gap:10px;max-height:52vh;overflow:auto}
@@ -460,6 +462,7 @@ iframe.am.big{aspect-ratio:16/9;width:auto}
   .sgrid,.togs{grid-template-columns:1fr}
   .kpis{grid-template-columns:1fr}
   .lobby{grid-template-columns:1fr}
+  .stage.lobbyst{height:auto;overflow:visible}
   .answers{grid-template-columns:1fr}
   .qmid .timer{width:90px;height:90px;font-size:38px}
   .ans-ed{grid-template-columns:1fr}
@@ -2144,7 +2147,7 @@ function lobbyJoinHtml(url) {
 function renderLobby() {
   const url = joinBase() + '?join=' + H.code, wurl = joinBase() + '?watch=' + H.code;
   const max = H.cfg.maxPlayers > 0 ? ` / ${H.cfg.maxPlayers}` : '';
-  app.innerHTML = `<div class="stage">
+  app.innerHTML = `<div class="stage lobbyst">
     ${stageTop()}
     <div class="lobby">
       <div class="joincol">
