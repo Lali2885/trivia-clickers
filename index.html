@@ -2055,6 +2055,8 @@ async function startGame(id) {
 async function startSet(set, opts = {}) {
   const qs = normQs(set && set.questions);
   if (!qs.length) return alert('אין במשחק הזה שאלות תקינות');
+  // מסך מלא מיד בהפעלה — חייב לקרות עוד לפני ההמתנה לענן, כל עוד הלחיצה "טרייה"
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
   const cfg = getSettings(set);
   setTheme(cfg.theme, cfg.djIcons, cfg.brand, cfg.ansLabels === 'numbers');
   document.body.classList.remove('admin');
@@ -2118,7 +2120,7 @@ function endHost() {
   document.querySelectorAll('.confetti').forEach(d => d.remove());
   const exit = H && H.onExit, wasEvent = H && H.event;
   H = null;
-  if (document.fullscreenElement && exit) document.exitFullscreen().catch(() => {});
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   if (exit) return exit();
   if (wasEvent) HOME_TAB = 'events';
   renderHome();
