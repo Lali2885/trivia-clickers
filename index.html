@@ -282,7 +282,10 @@ body:not(.admin) #cloudst{display:none}
 .adbox .adm{max-height:22vh;max-width:40%;border-radius:10px;object-fit:contain}
 .adbox iframe.adm{height:22vh;aspect-ratio:16/9;border:0}
 .adbox.wide{padding:0;background:none}
-.stage-bottom .adbox{margin-top:0;flex:0 1 auto;min-width:0;max-width:calc(100% - 340px)}
+.joincol{display:flex;flex-direction:column;gap:14px;min-width:0}
+.joincol .adbox{margin-top:0}
+.joincol .adbox.wide{display:block}
+.joincol .adbox.wide .adm{display:block;width:0;min-width:100%;height:auto;max-height:none}
 .adbox.wide .adm{max-width:100%;max-height:18vh;border-radius:14px}
 .adt{font-size:clamp(18px,2.8vh,28px);font-weight:800}
 .adp{font-size:clamp(22px,3.6vh,36px);font-weight:900;direction:ltr;display:inline-block}
@@ -2142,11 +2145,14 @@ function renderLobby() {
   app.innerHTML = `<div class="stage">
     ${stageTop()}
     <div class="lobby">
+      <div class="joincol">
       <div class="joinbox">
         ${djLogo()}
         ${lobbyJoinHtml(url)}
         ${H.cfg.remoteView ? `<div class="watchbox"><div id="wqr"></div><div><b>👁 צפייה מרחוק</b><br><span class="lbl">בלי הצבעה</span><br>
           <button class="mb" onclick="navigator.clipboard.writeText('${esc(wurl)}').then(()=>this.textContent='הועתק ✔')">העתקת קישור</button></div></div>` : ''}
+      </div>
+      ${adStrip()}
       </div>
       <div class="lobby-r">
         ${H.event || H.logo ? `<div class="evbrand">${H.logo ? `<img src="${H.logo}" alt="">` : ''}<h1>${esc((H.event && H.event.title) || H.title || '')}</h1></div>` : slogan('big')}
@@ -2155,7 +2161,7 @@ function renderLobby() {
         <div class="hint" style="color:#fff;opacity:.7;margin-top:10px">✏️ שינוי שם · ✕ הוצאה מהמשחק</div>
       </div>
     </div>
-    <div class="stage-bottom">${adStrip() || '<span></span>'}${slogan()}<button class="btn primary big" id="main" onclick="nextQ()" disabled>התחלת המשחק ▶</button></div>
+    <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="nextQ()" disabled>התחלת המשחק ▶</button></div>
   </div>`;
   hydrateMedia(app);
   if ($('qr')) try { new QRCode($('qr'), { text: url, width: 230, height: 230 }); } catch (e) {}
