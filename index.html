@@ -2084,6 +2084,11 @@ async function startSet(set, opts = {}) {
     await DB.set(gp('phonebook'), map);
   }
   H.unsubP = DB.on(gp('players'), v => { H.players = v || {}; onPlayers(); });
+  // שומרים את שרת הטלפון "ער" כל עוד המשחק פתוח — הפעלה קרה לוקחת כמה שניות ושיחות ימות נתקעות בה
+  if (cfg.joinMode !== 'app' && cfg.joinMode !== 'clickers') {
+    const warm = () => { if (!H || H.code !== code) return clearInterval(t); fetch('https://trivia-clickers.vercel.app/api/yemot', { mode: 'no-cors' }).catch(() => {}); };
+    const t = setInterval(warm, 3 * 60e3); warm();
+  }
   window.onkeydown = e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowLeft') { e.preventDefault(); const b = $('main'); if (b && !b.disabled) b.click(); }
