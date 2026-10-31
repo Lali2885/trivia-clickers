@@ -23,7 +23,8 @@ const msgs = arr => arr.filter(Boolean).map(say).join('.');
 
 // בקשת הקשה: הודעה ואז ספרה אחת (או 4 לקוד), בלי אישור, ריק = none
 function read(prompt, name, { min = 1, max = 1, wait = WAIT, keys = '' } = {}) {
-  const head = prompt || 'noop-wait';
+  // ימות מנתקת אם אין הודעה תקינה להשמיע — כשאין חדש אומרים מילה קצרה
+  const head = prompt || say('ממתינים');
   return `read=${head}=${name},no,${max},${min},${wait},NO,yes,no,,${keys},1,Ok,none,,no`;
 }
 const bye = arr => `id_list_message=${msgs(arr)}&go_to_folder=hangup`;
