@@ -131,10 +131,8 @@ async function handle(p) {
 
 module.exports = async (req, res) => {
   let text;
-  const p = params(req);
-  try { text = await handle(p); }
+  try { text = await handle(params(req)); }
   catch (e) { console.error(e); text = read(msgs(['תקלה זמנית', 'הקישו שוב']), 'E' + Date.now()); }
-  console.log('YEMOT', JSON.stringify(p), '=>', text); // זמני — אבחון ניתוקים
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.status(200).send(text);
 };
