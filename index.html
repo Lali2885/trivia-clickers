@@ -1805,8 +1805,9 @@ function eventToEditing(e, isNew) {
   if (!editing.questions.length) editing.questions.push(blankQ());
 }
 function newEvent() {
-  // אירוע ללקוח: עד 40 משתתפים כברירת מחדל (חבילות הבית בחנוכה); אפשר לשנות בהגדרות
-  eventToEditing({ code: newEvCode(), from: todayStr(), to: todayStr(), settings: { maxPlayers: 40 } }, true);
+  // אירוע ללקוח (חבילות הבית בחנוכה): שיחת טלפון בלבד — שיחות לא תופסות חיבור Firebase (Spark מוגבל ל-100),
+  // תשובות במספרים כדי שיתאימו למקשים, ועד 40 משתתפים. אפשר לשנות בהגדרות של כל אירוע.
+  eventToEditing({ code: newEvCode(), from: todayStr(), to: todayStr(), settings: { maxPlayers: 40, joinMode: 'call', ansLabels: 'numbers' } }, true);
   renderEditor();
 }
 async function openEvent(code) {
