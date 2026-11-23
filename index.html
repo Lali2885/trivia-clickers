@@ -1805,7 +1805,8 @@ function eventToEditing(e, isNew) {
   if (!editing.questions.length) editing.questions.push(blankQ());
 }
 function newEvent() {
-  eventToEditing({ code: newEvCode(), from: todayStr(), to: todayStr() }, true);
+  // אירוע ללקוח: עד 40 משתתפים כברירת מחדל (חבילות הבית בחנוכה); אפשר לשנות בהגדרות
+  eventToEditing({ code: newEvCode(), from: todayStr(), to: todayStr(), settings: { maxPlayers: 40 } }, true);
   renderEditor();
 }
 async function openEvent(code) {
