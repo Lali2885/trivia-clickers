@@ -221,6 +221,8 @@ body.admin .chk.ok .ic{background:#1fb86a}
 body.admin .set.ev.past{opacity:.7}
 body.admin .set.ev::before{background:linear-gradient(90deg,#25BDF0,#1fb86a)}
 .evlogo{max-height:70px;max-width:160px;border-radius:8px;border:1px solid #e3eaee;background:#fff}
+.evguide{margin-top:18px;padding-top:14px;border-top:1px solid var(--a-line,#e3eaee)}
+.evguide .btn{display:inline-block;text-decoration:none}
 .qstat{background:#f4f7f9;border:1px solid #e3eaee;border-radius:10px;padding:10px 12px;font-size:15px;margin-bottom:12px}
 .qopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
 .qopt{border:1px solid #e3eaee;border-radius:12px;padding:12px 14px}
@@ -2107,6 +2109,8 @@ async function renderEventPage(code) {
         <button class="btn primary big" onclick="startClientEvent('${e.code}')">▶ הפעלת המשחק</button>
         <div class="hint" style="margin-top:12px">💡 מומלץ לחבר את המחשב למסך גדול או למקרן לפני ההפעלה.</div>` :
         `<div class="lg-err">${!n ? 'עדיין אין שאלות באירוע הזה.' : st.k === 'future' ? `האירוע ייפתח ב-${fmtD(e.from)}.` : 'תוקף האירוע הסתיים.'}</div>`}
+      ${st.k !== 'past' ? `<div class="evguide"><a class="btn" href="guide.pdf" target="_blank" rel="noopener">📖 מדריך הפעלה — איך מפעילים את המשחק</a>
+        <div class="hint">מומלץ לקרוא לפני הערב: מה צריך, איך מתחילים, ואיך המשתתפים מצטרפים מהטלפון.</div></div>` : ''}
     </div>`);
 }
 async function startClientEvent(code) {
