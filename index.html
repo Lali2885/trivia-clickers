@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>טריוויה קליקרים</title>
+<title>שואלינו</title>
+<link rel="icon" href="shoalino-icon-192.png">
+<link rel="apple-touch-icon" href="shoalino-icon-512.png">
+<meta name="theme-color" content="#4b1597">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -467,6 +470,89 @@ iframe.am.big{aspect-ratio:16/9;width:auto}
   .qmid .timer{width:90px;height:90px;font-size:38px}
   .ans-ed{grid-template-columns:1fr}
 }
+
+/* קרדיט "מבית" */
+.mibeit{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#fff;opacity:.9}
+.mibeit img{height:48px;width:auto;background:#fff;border-radius:10px;padding:3px 8px}
+.pwrap .mibeit{align-self:center;margin-top:6px}
+body.admin .mibeit{color:var(--a-muted);margin-top:8px}
+body.admin .mibeit img{height:46px;border:1px solid var(--a-line)}
+
+/* ===== מסך הניהול — שואלינו ===== */
+body.admin{--a-text:#2a1650;--a-muted:#76689a;--a-line:#ebe4f7;
+  background:radial-gradient(900px 600px at 90% -10%,rgba(109,40,217,.13),transparent 60%),radial-gradient(800px 600px at 0% 110%,rgba(255,194,26,.16),transparent 60%),#faf8ff;background-attachment:fixed}
+.grad{background:linear-gradient(90deg,#6d28d9,#ff7a1a);-webkit-background-clip:text;background-clip:text;color:transparent}
+body.admin .alogo,.login .alogo{background:none;box-shadow:none;padding:0;width:200px}
+body.admin .alogo img{filter:drop-shadow(0 8px 10px rgba(75,21,151,.25))}
+.login .alogo{width:280px}
+body.admin .ahead h1{font-size:34px}
+.mini{border-top:4px solid #2f6fe0}
+.mini:nth-child(2){border-top-color:#43a82e}.mini:nth-child(3){border-top-color:#e8335f}.mini:nth-child(4){border-top-color:#f29a00}
+body.admin .mini b{color:#4b1597}
+body.admin .btn:hover{background:#f5f0ff}
+body.admin .btn.primary{background:#ffc21a;color:#2a0d50;border:0;box-shadow:0 4px 0 #e0a000}
+body.admin .btn.primary:hover{filter:brightness(1.04);transform:translateY(-1px)}
+body.admin .btn.primary:active{transform:translateY(3px);box-shadow:0 1px 0 #e0a000}
+body.admin .set::before{background:linear-gradient(90deg,#6d28d9,#ff7a1a)}
+body.admin .set.classic::before{background:linear-gradient(90deg,#e21b3c,#1368ce,#d89e00,#26890c)}
+body.admin .set.shoal::before{background:linear-gradient(90deg,#2f6fe0 0 25%,#43a82e 25% 50%,#e8335f 50% 75%,#f29a00 75%)}
+body.admin .set:hover{border-color:rgba(109,40,217,.45);box-shadow:0 14px 30px rgba(75,21,151,.13)}
+body.admin .newcard span{color:#6d28d9}
+body.admin .newcard:hover,body.admin .btn.add:hover{border-color:#6d28d9}
+body.admin .foot b,.lg-link,.evcode,.durbox b{color:#6d28d9}
+.evcode,.durbox{background:#f3edff}
+.durbox{border-color:#e2d6fb}
+body.admin .tab.on{background:#6d28d9;color:#fff}
+body.admin .qnum{background:#6d28d9}
+body.admin .tog input:checked+.sw{background:#6d28d9}
+body.admin .kpi{border-top-color:#ffc21a}
+body.admin .qcard.flash{outline-color:#e8335f}
+body.admin .ib:hover{background:#f1eafd}
+body.admin select,body.admin textarea,body.admin .fld input,body.admin .fld select{background:#fbf9ff;border-color:#e2d9f3}
+body.admin .set .tag{background:#f3edff;color:#5b21b6}
+
+.poweredby{flex-wrap:wrap;justify-content:center}
+body.admin .login .alogo{width:260px}
+/* ===== ערכת שואלינו — מסכי המשחק והטלפון ===== */
+body.theme-shoalino:not(.admin){--bg2:#4b1597;--primary:#ffc21a;--bad:#e8335f;--ok:#3fae4a;--ink:#2a0d50;
+  background:radial-gradient(circle at 50% 0%,#7b34e8 0,transparent 55%),radial-gradient(circle at 100% 100%,#ff7a1a55 0,transparent 45%),linear-gradient(170deg,#4b1597,#1d0b3a);background-attachment:fixed}
+body.theme-shoalino:not(.admin)::before{content:'';position:fixed;inset:-60%;background:repeating-conic-gradient(from 0deg,#ffffff0a 0 9deg,transparent 9deg 18deg);animation:spin 60s linear infinite;pointer-events:none;z-index:0}
+.shlogo{display:none}
+.theme-shoalino .shlogo{display:block}
+.theme-shoalino .shlogo img{display:block;width:100%;height:auto;filter:drop-shadow(0 6px 8px #0005)}
+.theme-shoalino .joinbox .shlogo{display:none}
+.theme-shoalino .stage-top .shlogo{width:130px;animation:shbob 3s ease-in-out infinite;transform-origin:50% 80%}
+.theme-shoalino .pwrap .shlogo{width:min(280px,80vw);margin:0 auto;animation:shpop .9s cubic-bezier(.2,1.6,.4,1) both,shbob 3s 1s ease-in-out infinite}
+.theme-shoalino .pwrap .logo{display:none}
+.shbig{display:block;width:min(520px,100%);margin:0 auto 10px;filter:drop-shadow(0 14px 16px #0006);animation:shpop 1.1s cubic-bezier(.2,1.6,.4,1) both,shbob 3.2s 1.2s ease-in-out infinite}
+.shslogan{display:none}
+.theme-shoalino .shslogan{display:inline-block;font-weight:900;font-size:24px;color:#ffc21a;text-shadow:0 3px 0 #2a0d50;letter-spacing:.5px}
+.theme-shoalino .pwrap .shslogan{display:block;font-size:20px}
+@keyframes shbob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(-1.5deg)}}
+@keyframes shpop{0%{transform:scale(.2) rotate(-12deg);opacity:0}60%{transform:scale(1.08) rotate(3deg);opacity:1}100%{transform:scale(1)}}
+@keyframes shjump{0%{transform:none}25%{transform:translateY(6px) scale(1.08,.9)}55%{transform:translateY(-26px) scale(.95,1.08) rotate(-4deg)}80%{transform:translateY(0) scale(1.04,.96)}100%{transform:none}}
+.theme-shoalino .stage-top .shlogo.jump{animation:shjump .9s cubic-bezier(.3,1.5,.5,1)}
+.theme-shoalino .btn.primary{background:#ffc21a;color:#2a0d50;box-shadow:0 5px 0 #c27a00}
+.theme-shoalino .btn.primary:active{box-shadow:0 1px 0 #c27a00}
+.theme-shoalino .btn.ghost{color:#fff;background:#ffffff1f}
+.theme-shoalino .pill{background:#ffffff1f;border:1px solid #ffc21a66}
+.theme-shoalino .qtext{border-bottom:7px solid #ffc21a;box-shadow:0 10px 0 -3px #ff7a1a}
+.theme-shoalino .timer{background:radial-gradient(circle at 35% 30%,#8b4af0,#4b1597);border-color:#ffc21a;color:#fff;text-shadow:0 3px 0 #2a0d50}
+.theme-shoalino .timer.low{background:#e8335f;border-color:#fff}
+.theme-shoalino .tbar>div{background:linear-gradient(90deg,#ff7a1a,#ffc21a)}
+.theme-shoalino .tbar.low>div{background:#e8335f}
+.theme-shoalino .ans{box-shadow:0 6px 0 #0004;border-radius:16px}
+.theme-shoalino .stage.reveal .ans:not(.dim){animation:shwin .6s .2s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes shwin{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+.theme-shoalino .joinbox{border:4px solid #ffc21a;box-shadow:0 12px 0 -4px #ff7a1a}
+.theme-shoalino .joinbox .code{color:#6d28d9}
+.theme-shoalino .chip{color:#4b1597;border-inline-start:5px solid #ffc21a}
+.theme-shoalino .brow .r{color:#ff7a1a}
+.theme-shoalino .ptimer{background:#6d28d9;border-color:#ffc21a}
+.theme-shoalino .pbtn{border-radius:18px}
+.theme-shoalino .result.ok{background:linear-gradient(160deg,#4cc25a,#23843a)}
+.theme-shoalino .result.bad{background:linear-gradient(160deg,#ff5d84,#b81f48)}
+.theme-shoalino .spinner{border-color:#ffffff30;border-top-color:#ffc21a}
 </style>
 </head>
 <body>
@@ -508,6 +594,7 @@ const DJ_DEFAULT_ICONS = ['turntable', 'mixer', 'speaker', 'disco'];
 const djShapes = icons => [0, 1, 2, 3].map(j => svg((DJ_ICONS[(icons || [])[j]] || DJ_ICONS[DJ_DEFAULT_ICONS[j]]).svg));
 const THEMES = {
   classic: { colors: ['#e21b3c', '#1368ce', '#d89e00', '#26890c'], shapes: ['▲', '◆', '●', '■'], tf: ['#1368ce', '#e21b3c'] },
+  shoalino: { colors: ['#2f6fe0', '#43a82e', '#e8335f', '#f29a00'], shapes: ['▲', '◆', '●', '■'], tf: ['#43a82e', '#e8335f'] },
   dj: {
     colors: ['#25BDF0', '#F05235', '#1E6FA8', '#F59E0B'], tf: ['#25BDF0', '#F05235'],
     shapes: [
@@ -529,6 +616,7 @@ function setTheme(name, icons, brand, nums) {
   else ({ colors: COLORS, shapes: SHAPES, tf: TF_COLORS } = THEMES[name]);
   if (name === 'dj') SHAPES = djShapes(icons);
   document.body.classList.toggle('theme-dj', name === 'dj');
+  document.body.classList.toggle('theme-shoalino', name === 'shoalino');
   document.body.classList.toggle('theme-brand', isBrand);
   const st = document.body.style;
   [['--primary', 0], ['--bg2', 'bg2'], ['--brand-bg', 'bg'], ['--brand-c1', 0], ['--brand-c2', 1]].forEach(([v, k]) => {
@@ -592,8 +680,9 @@ function readLogo(f, cb) {
   };
   img.src = URL.createObjectURL(f);
 }
-const slogan = (cls = '') => THEME === 'dj' ? `<span class="slogan ${cls}">תרקדי. תשתחררי. תהני</span>` : '';
-const djLogo = () => THEME === 'dj' ? '<div class="djlogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>' : '';
+const slogan = (cls = '') => THEME === 'shoalino' ? (cls === 'big' ? '<img class="shbig" src="shoalino-logo.png" alt="שואלינו">' : `<span class="shslogan ${cls}">שואלים · עונים · נהנים</span>`) : THEME === 'dj' ? `<span class="slogan ${cls}">תרקדי. תשתחררי. תהני</span>` : '';
+const MIBEIT = '<span class="mibeit"><span>מבית</span><img src="logo-dj.png" alt="ללי ולכולן — ללי שטרן, מוזיקה בקצב"></span>';
+const djLogo = () => THEME === 'shoalino' ? '<div class="shlogo"><img src="shoalino-logo.png" alt="שואלינו"></div>' : THEME === 'dj' ? '<div class="djlogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>' : '';
 const app = document.getElementById('app');
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -891,8 +980,8 @@ const AD_DEFAULT = {
 // חלופה: פרסום של הטריוויה עצמה (לבחירה בהגדרות של כל משחק). הטלפון והמתגים נלקחים מ"הפרסום שלי"
 const AD_TRIVIA = {
   media: { kind: 'video', src: 'ad/trivia-video.mp4' }, img: { kind: 'image', src: 'ad/trivia-strip.png' }, pimg: { kind: 'image', src: 'ad/trivia-square.png' },
-  title: 'טריוויה קליקרים – כל הקהל משחק מכל טלפון',
-  say: 'רוצות את המשחק הזה באירוע שלכן? טריוויה קליקרים של ללי שטרן. להזמנת אירוע חייגו 0 5 2 7 1 7 4 3 1 7'
+  title: 'שואלינו – כל הקהל משחק מכל טלפון',
+  say: 'רוצות את המשחק הזה באירוע שלכן? משחק הטריוויה של ללי שטרן. להזמנת אירוע חייגו 0 5 2 7 1 7 4 3 1 7'
 };
 const adFor = (profile, base = loadAd()) => profile === 'trivia' ? { ...base, ...AD_TRIVIA } : base;
 function loadAd() {
@@ -1008,7 +1097,7 @@ const qType = q => q.poll ? 'poll' : q.tf ? 'tf' : 'mc';
 
 /* ====================== הגדרות משחק ====================== */
 const DEFAULT_SETTINGS = {
-  theme: 'classic', djIcons: DJ_DEFAULT_ICONS, joinMode: 'callapp', qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
+  theme: 'shoalino', djIcons: DJ_DEFAULT_ICONS, joinMode: 'callapp', qTime: 20, maxPlayers: 0, music: 'classic', musicFile: null,
   showAnswersPhone: true, lateJoin: true, ansLabels: 'shapes', showAd: true, adProfile: 'dj',
   scoring: 'speed', boardWhen: 'each', boardEvery: 3, resultsSec: 10,
   showCorrect: true, showFastest: true, showBoard: true, showRankChange: true, showStreak: true, autoNext: false,
@@ -1088,10 +1177,10 @@ function renderHome() {
   app.innerHTML = `<div class="wrap">
     <header class="ahead">
       <div class="brand">
-        <div class="alogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>
-        <div><h1>טריוויה <span class="grad">קליקרים</span></h1><div class="sub">השאלות על המסך הגדול · עונים מהטלפון</div></div>
+        <div class="alogo"><img src="shoalino-logo.png" alt="שואלינו"></div>
+        <div><h1>לוח <span class="grad">הניהול</span></h1><div class="sub">שואלים על המסך הגדול · עונים מכל טלפון</div>${MIBEIT}</div>
       </div>
-      <div style="text-align:left"><div class="a-slogan grad">תרקדי. תשתחררי. תהני</div>
+      <div style="text-align:left"><div class="a-slogan grad">שואלים · עונים · נהנים</div>
         ${ONLINE && ADMIN ? `<div class="who">👤 ${esc(ADMIN.email)} <button onclick="logout()">יציאה</button></div>` : ''}</div>
     </header>
     <div class="statsrow">
@@ -1118,9 +1207,9 @@ function renderHome() {
       const c = getSettings(x), qs = normQs(x.questions), n = runsBySet[x.id] || 0;
       const mins = Math.max(1, Math.round(programTime(qs, c).total / 60));
       return `
-      <div class="set ${c.theme === 'dj' ? 'dj' : 'classic'}">
+      <div class="set ${c.theme === 'dj' ? 'dj' : c.theme === 'shoalino' ? 'shoal' : 'classic'}">
         <div class="sethead">
-          <span class="tag">${c.theme === 'dj' ? '🎧 ערכת DJ' : '🎨 קלאסי'}</span>
+          <span class="tag">${c.theme === 'dj' ? '🎧 ערכת DJ' : c.theme === 'shoalino' ? '❓ שואלינו' : '🎨 קלאסי'}</span>
           <span class="acts">
             <button class="icb" title="שכפול" onclick="dupSet('${x.id}')">⧉</button>
             <button class="icb" title="ייצוא לאקסל" onclick="exportSet('${x.id}')">⬇</button>
@@ -1311,7 +1400,7 @@ function settingsHtml() {
       <div class="frow">${num('qTime', 'זמן לשאלה (שניות)', 5, 300, 'לשאלות חדשות')}${num('maxPlayers', 'מספר משתתפים מקסימלי', 0, 10000, '0 = ללא הגבלה')}</div>
       <button class="mb" onclick="applyTimeAll()">החלת הזמן על כל השאלות הקיימות</button>
       <div class="frow" style="margin-top:12px">
-        ${sel('theme', 'ערכת עיצוב', [['classic', 'קלאסית (צבעוני)'], ['dj', '🎧 DJ — ללי שטרן'], ...(c.brand ? [['brand', '🎨 לפי הלוגו']] : [])])}
+        ${sel('theme', 'ערכת עיצוב', [['shoalino', '❓ שואלינו'], ['classic', 'קלאסית (צבעוני)'], ['dj', '🎧 DJ — ללי שטרן'], ...(c.brand ? [['brand', '🎨 לפי הלוגו']] : [])])}
         ${sel('music', 'מוזיקת רקע', [['classic', 'מנגינת משחק קלאסית'], ['dj', 'ביט DJ'], ['file', 'קובץ מוזיקה שלי'], ['none', 'ללא מוזיקה']])}
       </div>
       <div class="frow" style="margin-top:12px">${sel('ansLabels', 'סימון התשובות', [['shapes', 'צורות (▲ ◆ ● ■)'], ['numbers', 'מספרים (1 2 3 4)']])}</div>
@@ -1320,7 +1409,7 @@ function settingsHtml() {
       ${c.music === 'file' ? `<div class="mrow">${c.musicFile ? `🎵 ${esc(c.musicFile.name || 'קובץ מוזיקה')} <button class="mb" onclick="setS('musicFile',null,true)">הסרה</button>` : `<button class="mb" onclick="$('afile').click()">בחירת קובץ מוזיקה מהמחשב</button>`}<input type="file" id="afile" accept="audio/*" hidden onchange="musicPicked(this)"></div>` : ''}
       <div class="frow" style="margin-top:12px"><label class="fld"><span>מי משתתף</span><select onchange="setS('joinMode',this.value,true)">${joinOpts(c.joinMode)}</select></label></div>
       <div class="togs">${tog('showAnswersPhone', 'להראות למשתתפים בטלפון אם צדקו')}${tog('lateJoin', 'אפשר הצטרפות מאוחרת')}${tog('showAd', '📣 להציג את הפרסום שלי')}</div>
-      <div class="frow" style="margin-top:12px">${sel('adProfile', 'איזה פרסום להציג', [['dj', '🎧 DJ (הפרסום שלי)'], ['trivia', '❓ טריוויה קליקרים']])}</div>
+      <div class="frow" style="margin-top:12px">${sel('adProfile', 'איזה פרסום להציג', [['dj', '🎧 DJ (הפרסום שלי)'], ['trivia', '❓ שואלינו']])}</div>
     </div>
     <div class="scard">
       <h3>ניקוד ותוצאות</h3>
@@ -1720,8 +1809,8 @@ function renderLogin(msg) {
   document.body.classList.add('admin');
   setTheme('classic');
   app.innerHTML = `<div class="wrap"><div class="login">
-    <div class="alogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>
-    <h1>טריוויה <span class="grad">קליקרים</span></h1>
+    <div class="alogo"><img src="shoalino-logo.png" alt="שואלינו"></div>
+    ${MIBEIT}
     <div class="lg-card">
       <h3>🎟 יש לך קוד אירוע?</h3>
       <div class="lg-row"><input id="evcode" placeholder="קוד האירוע" maxlength="20" dir="ltr" onkeydown="if(event.key==='Enter')goEvent()"><button class="btn primary" onclick="goEvent()">כניסה</button></div>
@@ -1899,7 +1988,7 @@ function parseClientForm(rows) {
     const label = S(r[1]), val = S(r[2]);
     if (!val) continue;
     if (label.includes('שם האירוע')) out.title = val;
-    else if (label.includes('ערכת עיצוב')) out.theme = /dj/i.test(val) ? 'dj' : 'classic';
+    else if (label.includes('ערכת עיצוב')) out.theme = /dj/i.test(val) ? 'dj' : /שואלינו/.test(val) ? 'shoalino' : 'classic';
     else if (label.includes('שם הלקוח') || label.includes('בעל השמחה')) out.client = val;
   }
   const qTime = (editing && editing.settings && editing.settings.qTime) || 20;
@@ -1956,8 +2045,8 @@ async function renderEventPage(code) {
   app.innerHTML = '<div class="wrap"><div class="empty">טוען…</div></div>';
   code = cleanCode(code);
   const e = code ? await DB.get('events/' + code) : null;
-  const shell = inner => `<div class="wrap"><div class="login">${inner}
-    <div class="poweredby"><img src="logo-dj.png" alt=""><span>מופעל על ידי ללי שטרן · מוזיקה בקצב</span></div></div></div>`;
+  const shell = inner => `<div class="wrap"><div class="login"><div class="alogo"><img src="shoalino-logo.png" alt="שואלינו"></div>${inner}
+    <div class="poweredby"><span>מבית</span><img src="logo-dj.png" alt="ללי ולכולן"><span>ללי שטרן · מוזיקה בקצב</span></div></div></div>`;
   if (!e) {
     app.innerHTML = shell(`<div class="lg-card"><h3>🔍 קוד האירוע לא נמצא</h3>
       <div class="lg-row"><input id="evcode" placeholder="קוד האירוע" dir="ltr" value="${esc(code)}" onkeydown="if(event.key==='Enter')goEvent()"><button class="btn primary" onclick="goEvent()">כניסה</button></div></div>`);
@@ -2173,7 +2262,7 @@ function renderLobby() {
         <div class="hint" style="color:#fff;opacity:.7;margin-top:10px">✏️ שינוי שם · ✕ הוצאה מהמשחק</div>
       </div>
     </div>
-    <div class="stage-bottom"><span></span>${slogan()}<button class="btn primary big" id="main" onclick="nextQ()" disabled>התחלת המשחק ▶</button></div>
+    <div class="stage-bottom">${MIBEIT}${slogan()}<button class="btn primary big" id="main" onclick="nextQ()" disabled>התחלת המשחק ▶</button></div>
   </div>`;
   hydrateMedia(app);
   if ($('qr')) try { new QRCode($('qr'), { text: url, width: 230, height: 230 }); } catch (e) {}
@@ -2400,6 +2489,10 @@ function renderReveal(counts) {
     </div>
   </div>`;
   hydrateMedia(app);
+  if (THEME === 'shoalino') {
+    document.querySelectorAll('.stage-top .shlogo').forEach(l => { l.classList.remove('jump'); void l.offsetWidth; l.classList.add('jump'); });
+    if (showC && !q.poll && counts[q.correct]) setTimeout(confetti, 250);
+  }
 }
 
 function boardRows(list, from = 0) {
@@ -2465,7 +2558,7 @@ async function finish() {
     <div class="board" style="text-align:center"><h2>🏆 המנצחים 🏆</h2></div>
     <div class="podium">${pod(1, 200, '#c0c0c0')}${pod(0, 280, '#ffcc00')}${pod(2, 140, '#cd7f32')}</div>
     ${rest}` : `<div class="board" style="text-align:center;flex:1"><h2>🎉 המשחק נגמר!</h2><div style="font-size:26px">תודה לכל המשתתפים</div></div>`}
-    <div class="stage-bottom"><span></span>${slogan()}${H.ad && H.ad.end ? '<button class="btn primary big" id="main" onclick="showAdScreen()">המשך ▶</button>'
+    <div class="stage-bottom">${MIBEIT}${slogan()}${H.ad && H.ad.end ? '<button class="btn primary big" id="main" onclick="showAdScreen()">המשך ▶</button>'
       : `<button class="btn primary big" id="main" onclick="endHost()">${H.onExit ? 'סיום' : 'סיום וחזרה למסך הראשי'}</button>`}</div>
   </div>`;
   confetti();
@@ -2498,7 +2591,7 @@ function playerJoinScreen(code, err) {
     <input id="pcode" inputmode="numeric" maxlength="4" placeholder="קוד המשחק" value="${esc(code || '')}">
     <input id="pname" maxlength="16" placeholder="השם שלך" value="${esc(last)}">
     <button class="btn primary big" onclick="pJoin()">כניסה למשחק</button>
-    <div class="perr" id="perr">${esc(err || '')}</div>
+    <div class="perr" id="perr">${esc(err || '')}</div>${MIBEIT}
   </div>`;
   $(code ? 'pname' : 'pcode').focus();
   // אם כבר יודעים את קוד המשחק — מחילים את ערכת העיצוב שלו
@@ -2590,7 +2683,7 @@ function renderPlayer() {
     body = `${djLogo()}<div class="ico" style="font-size:90px">${medal}</div>${slogan()}<div class="pbig">המשחק נגמר!</div>
       ${r ? `<div class="psub">מקום <b>${r.rank}</b> מתוך ${r.of}<br>${r.score} נקודות</div>` : ''}
       ${m.ad ? `<div class="pad">${adPhoneImg(m.ad) ? `<img src="${esc(adPhoneImg(m.ad).src)}" alt="">` : ''}${m.ad.title ? `<b>${esc(m.ad.title)}</b>` : ''}${adContacts(m.ad)}</div>` : ''}
-      <button class="btn ghost" onclick="PSTORE.removeItem(SESS_KEY);playerJoinScreen('')">משחק חדש</button>`;
+      <button class="btn ghost" onclick="PSTORE.removeItem(SESS_KEY);playerJoinScreen('')">משחק חדש</button>${MIBEIT}`;
   }
   app.innerHTML = `<div class="pwrap">${m.state === 'question' && P.answeredI !== m.i ? '' : pTop()}${body}</div>`;
 }
@@ -2664,6 +2757,7 @@ $('eq').innerHTML = Array.from({ length: 48 }, () => `<i style="animation-delay:
   if (params.has('watch')) {
     watchInit((params.get('watch') || '').trim());
   } else if (params.has('join') || params.has('play')) {
+    setTheme('shoalino'); // מסך הכניסה בטלפון בשואלינו עד שיודעים את ערכת המשחק
     const code = (params.get('join') || '').trim();
     let sess = null; try { sess = JSON.parse(PSTORE.getItem(SESS_KEY)); } catch (e) {}
     // חזרה אוטומטית למשחק אם הטלפון התנתק / רוענן
