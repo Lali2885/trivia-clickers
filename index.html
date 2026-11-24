@@ -221,6 +221,13 @@ body.admin .chk.ok .ic{background:#1fb86a}
 body.admin .set.ev.past{opacity:.7}
 body.admin .set.ev::before{background:linear-gradient(90deg,#25BDF0,#1fb86a)}
 .evlogo{max-height:70px;max-width:160px;border-radius:8px;border:1px solid #e3eaee;background:#fff}
+.qstat{background:#f4f7f9;border:1px solid #e3eaee;border-radius:10px;padding:10px 12px;font-size:15px;margin-bottom:12px}
+.qopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.qopt{border:1px solid #e3eaee;border-radius:12px;padding:12px 14px}
+.qopt>b{display:block;font-size:16px}
+.qopt>small{display:block;color:var(--muted);font-size:13px;margin:4px 0 6px}
+.qopt select{flex:1;min-width:0}
+.mb.go{background:var(--a-accent,#6D28D9)!important;color:#fff!important;border-color:transparent!important;font-weight:700}
 .linkbox{background:#f4f7f9;border:1px solid #e3eaee;border-radius:10px;padding:10px 12px;font-size:14px;word-break:break-all}
 .qtools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .durbox{background:#eef7fb;border:1px solid #cde9f4;color:#263238;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:16px}
@@ -1870,7 +1877,7 @@ async function renderEventsBody() {
           </span>
         </div>
         <div class="evhead">${e.logo ? `<img src="${e.logo}" alt="">` : ''}<div><h3>${esc(e.title || 'ללא שם')}</h3><div class="meta"><span>👤 ${esc(e.client || '—')}</span></div></div></div>
-        <div class="meta"><span>📅 ${evDates(e)}</span><span>❓ ${n} שאלות</span>${runs ? `<span>▶ ${runs} הפעלות</span>` : ''}</div>
+        <div class="meta"><span>📅 ${evDates(e)}</span><span>${e.qSource ? '📚 ' + esc(e.qSource.title) + ' · ' : '✏️ אישי · '}${n} שאלות</span>${runs ? `<span>▶ ${runs} הפעלות</span>` : ''}</div>
         <div class="evcode" title="קוד האירוע">${e.code}</div>
         <div class="row">
           <button class="btn primary" onclick="openEvent('${e.code}')">✏ עריכה</button>
@@ -1887,7 +1894,7 @@ function eventToEditing(e, isNew) {
     id: 'ev-' + e.code, isEvent: true, isNew, title: e.title || '',
     questions: (e.questions || []).map(q => q.tf ? q : { ...q, answers: [0, 1, 2, 3].map(j => (q.answers || [])[j] || ''), amedia: [0, 1, 2, 3].map(j => (q.amedia || [])[j] || null) }),
     settings: getSettings(e),
-    ev: { code: e.code, origCode: isNew ? null : e.code, client: e.client || '', from: e.from || '', to: e.to || '', logo: e.logo || null },
+    ev: { code: e.code, origCode: isNew ? null : e.code, client: e.client || '', from: e.from || '', to: e.to || '', logo: e.logo || null, qSource: e.qSource || null },
     runs: Object.values(e.runs || {}).map(r => ({ ...r, players: r.players || [], questions: (r.questions || []).map(q => ({ ...q, answers: q.answers || [], counts: q.counts || [] })) })).sort((a, b) => b.date - a.date),
     tab: isNew ? 'ev' : 'q'
   };
@@ -1943,18 +1950,51 @@ function evHtml() {
         <button class="mb" onclick="copyText('${esc(link)}',this)">העתקת הקישור</button>
         ${v.origCode ? `<button class="mb" onclick="window.open('${esc(link)}','_blank')">פתיחת דף הלקוח ↗</button>` : '<span class="hint">הקישור יעבוד אחרי השמירה</span>'}
       </div>
-      <h3 style="margin-top:18px">❓ שאלות לאירוע</h3>
-      <div class="frow">
-        <button class="mb" onclick="$('cfile').click()">⬆ ייבוא מאקסל</button>
-        <a class="mb" href="client-form.xlsx" download="טופס שאלות לאירוע.xlsx">⬇ טופס ריק לשליחה ללקוח</a>
+    </div>
+    <div class="scard wide">
+      <h3>❓ השאלון של האירוע</h3>
+      <div class="qstat">${qStatusHtml()}</div>
+      <div class="qopts">
+        <div class="qopt">
+          <b>📚 שאלון מוכן</b>
+          <small>בוחרים שאלון שבנית, והוא משויך ללקוח. השאלות שלו נכנסות לאירוע במקום השאלות שיש בו עכשיו.</small>
+          <div class="frow">
+            <select id="attachset"><option value="">בחירת שאלון…</option>${setOpts(sets, v.qSource && v.qSource.id)}</select>
+            <button class="mb go" onclick="attachSet($('attachset').value)">שיוך לאירוע</button>
+          </div>
+        </div>
+        <div class="qopt">
+          <b>✏️ שאלון אישי של הלקוח</b>
+          <small>הלקוח ממלא את הטופס ואת מייבאת אותו, או שכותבים את השאלות בלשונית "שאלות". השאלות האלה <u>מתווספות</u> למה שכבר יש, כך שאפשר לשלב שאלון מוכן עם שאלות על המשפחה.</small>
+          <div class="frow">
+            <a class="mb" href="client-form.xlsx" download="טופס שאלות לאירוע.xlsx">⬇ טופס ריק לשליחה ללקוח</a>
+            <button class="mb" onclick="$('cfile').click()">⬆ ייבוא הטופס מאקסל</button>
+          </div>
+          <div class="frow">
+            <select id="copyfrom"><option value="">הוספת שאלות משאלון קיים…</option>${setOpts(sets)}</select>
+            <button class="mb" onclick="copyFromSet($('copyfrom').value)">הוספה</button>
+          </div>
+        </div>
       </div>
-      <div class="frow">
-        <select id="copyfrom"><option value="">העתקת שאלות ממשחק קיים…</option>${sets.map(s => `<option value="${s.id}">${esc(s.title)} (${normQs(s.questions).length})</option>`).join('')}</select>
-        <button class="mb" onclick="copyFromSet($('copyfrom').value)">הוספה</button>
-      </div>
-      <div class="hint">יש כרגע ${normQs(editing.questions).length} שאלות תקינות. אפשר לערוך אותן בלשונית "שאלות".</div>
     </div>
   </div>`;
+}
+const setOpts = (sets, sel) => sets.map(s => `<option value="${s.id}"${s.id === sel ? ' selected' : ''}>${esc(s.title)} (${normQs(s.questions).length})</option>`).join('');
+function qStatusHtml() {
+  const n = normQs(editing.questions).length, src = editing.ev.qSource;
+  if (!n) return '⚠️ עדיין אין שאלות באירוע. בחרי שאלון מוכן, או הכיני שאלון אישי.';
+  return (src ? `📚 משויך השאלון המוכן <b>${esc(src.title)}</b>` : '✏️ שאלון אישי') + ` · ${n} שאלות · <a href="#" onclick="editing.tab='q';renderEditor();return false">לצפייה ועריכה ←</a>`;
+}
+function attachSet(id) {
+  const s = loadSets().find(x => x.id === id); if (!s) return alert('בחרי שאלון מהרשימה');
+  const qs = normQs(s.questions).map(q => { const { media, amedia, ...rest } = q; return rest; }); // מדיה מקומית לא עוברת לענן
+  if (!qs.length) return alert(`בשאלון "${s.title}" אין שאלות תקינות`);
+  const cur = normQs(editing.questions).length;
+  if (cur && !confirm(`באירוע יש כבר ${cur} שאלות.\nלהחליף אותן בשאלון "${s.title}" (${qs.length} שאלות)?`)) return;
+  editing.questions = [];
+  addQuestions(qs);
+  editing.ev.qSource = { id: s.id, title: s.title };
+  renderEditor();
 }
 function logoPicked(inp) {
   const f = inp.files[0]; inp.value = ''; if (!f) return;
@@ -2024,7 +2064,7 @@ async function saveEventRec(clean, stay) {
     if (code !== v.origCode) {
       if (await DB.get('events/' + code)) { alert(`הקוד ${code} כבר תפוס. בחרי קוד אחר.`); return false; }
     }
-    const rec = { code, title: clean.title, client: v.client.trim(), from: v.from || '', to: v.to || '', logo: v.logo || null,
+    const rec = { code, title: clean.title, client: v.client.trim(), from: v.from || '', to: v.to || '', logo: v.logo || null, qSource: v.qSource || null,
       questions: clean.questions, settings: clean.settings, ad: (a => adHas(a) ? adPublic(a) : null)(adFor(clean.settings && clean.settings.adProfile)), updatedAt: Date.now() };
     if (!v.origCode) rec.createdAt = Date.now();
     await DB.update('events/' + code, rec);
