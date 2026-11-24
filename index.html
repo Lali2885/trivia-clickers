@@ -484,6 +484,10 @@ iframe.am.big{aspect-ratio:16/9;width:auto}
 .mibeit{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#fff;opacity:.9}
 .mibeit img{height:48px;width:auto;background:#fff;border-radius:10px;padding:3px 8px}
 .pwrap .mibeit{align-self:center;margin-top:6px}
+.legal-links{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin-top:10px;font-size:13px}
+.legal-links a{color:inherit;opacity:.85;text-decoration:underline;font-weight:500}
+.pwrap .legal-links{align-self:center;color:#fff}
+body.admin .legal-links{color:var(--a-muted)}
 body.admin .mibeit{color:var(--a-muted);margin-top:8px}
 body.admin .mibeit img{height:46px;border:1px solid var(--a-line)}
 
@@ -693,6 +697,7 @@ function readLogo(f, cb) {
   img.src = URL.createObjectURL(f);
 }
 const slogan = (cls = '') => THEME === 'shoalino' ? (cls === 'big' ? '<img class="shbig" src="shoalino-logo.png" alt="שואלינו">' : `<span class="shslogan ${cls}">שואלים · עונים · נהנים</span>`) : THEME === 'dj' ? `<span class="slogan ${cls}">תרקדי. תשתחררי. תהני</span>` : '';
+const LEGAL = '<nav class="legal-links" aria-label="מידע משפטי"><a href="privacy.html">פרטיות</a><a href="accessibility.html">נגישות</a><a href="terms.html">תנאי שימוש</a></nav>';
 const MIBEIT = '<span class="mibeit"><span>מבית</span><img src="logo-dj.png" alt="ללי ולכולן — ללי שטרן, מוזיקה בקצב"></span>';
 const djLogo = () => THEME === 'shoalino' ? '<div class="shlogo"><img src="shoalino-logo.png" alt="שואלינו"></div>' : THEME === 'dj' ? '<div class="djlogo"><img src="logo-dj.png" alt="ללי שטרן — מוזיקה בקצב"></div>' : '';
 const app = document.getElementById('app');
@@ -1833,6 +1838,7 @@ function renderLogin(msg) {
       <button class="btn" onclick="loginGoogle()">התחברות עם Google</button>
       ${msg ? `<div class="lg-err">${esc(msg)}</div>` : ''}
     </div>
+    ${LEGAL}
   </div></div>`;
 }
 function goEvent() { const c = ($('evcode').value || '').trim().toUpperCase(); if (c) location.search = '?event=' + encodeURIComponent(c); }
@@ -2694,7 +2700,7 @@ function playerJoinScreen(code, err) {
     <input id="pcode" inputmode="numeric" maxlength="4" placeholder="קוד המשחק" value="${esc(code || '')}">
     <input id="pname" maxlength="16" placeholder="השם שלך" value="${esc(last)}">
     <button class="btn primary big" onclick="pJoin()">כניסה למשחק</button>
-    <div class="perr" id="perr">${esc(err || '')}</div>${MIBEIT}
+    <div class="perr" id="perr">${esc(err || '')}</div>${MIBEIT}${LEGAL}
   </div>`;
   $(code ? 'pname' : 'pcode').focus();
   // אם כבר יודעים את קוד המשחק — מחילים את ערכת העיצוב שלו
@@ -2786,7 +2792,7 @@ function renderPlayer() {
     body = `${djLogo()}<div class="ico" style="font-size:90px">${medal}</div>${slogan()}<div class="pbig">המשחק נגמר!</div>
       ${r ? `<div class="psub">מקום <b>${r.rank}</b> מתוך ${r.of}<br>${r.score} נקודות</div>` : ''}
       ${m.ad ? `<div class="pad">${adPhoneImg(m.ad) ? `<img src="${esc(adPhoneImg(m.ad).src)}" alt="">` : ''}${m.ad.title ? `<b>${esc(m.ad.title)}</b>` : ''}${adContacts(m.ad)}</div>` : ''}
-      <button class="btn ghost" onclick="PSTORE.removeItem(SESS_KEY);playerJoinScreen('')">משחק חדש</button>${MIBEIT}`;
+      <button class="btn ghost" onclick="PSTORE.removeItem(SESS_KEY);playerJoinScreen('')">משחק חדש</button>${MIBEIT}${LEGAL}`;
   }
   app.innerHTML = `<div class="pwrap">${m.state === 'question' && P.answeredI !== m.i ? '' : pTop()}${body}</div>`;
 }
