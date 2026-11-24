@@ -1900,7 +1900,7 @@ function eventToEditing(e, isNew) {
     id: 'ev-' + e.code, isEvent: true, isNew, title: e.title || '',
     questions: (e.questions || []).map(q => q.tf ? q : { ...q, answers: [0, 1, 2, 3].map(j => (q.answers || [])[j] || ''), amedia: [0, 1, 2, 3].map(j => (q.amedia || [])[j] || null) }),
     settings: getSettings(e),
-    ev: { code: e.code, origCode: isNew ? null : e.code, client: e.client || '', from: e.from || '', to: e.to || '', logo: e.logo || null, qSource: e.qSource || null, phone: e.phone || '' },
+    ev: { code: e.code, origCode: isNew ? null : e.code, client: e.client || '', from: e.from || '', to: e.to || '', logo: e.logo || null, qSource: e.qSource || null, phone: e.phone || '', email: e.email || '' },
     runs: Object.values(e.runs || {}).map(r => ({ ...r, players: r.players || [], questions: (r.questions || []).map(q => ({ ...q, answers: q.answers || [], counts: q.counts || [] })) })).sort((a, b) => b.date - a.date),
     tab: isNew ? 'ev' : 'q'
   };
@@ -1947,10 +1947,12 @@ function sendBox(e) {
   d.innerHTML = `<div class="nb"><h3>📤 שליחה ללקוח</h3>
     <div class="hint">אפשר לשנות את ההודעה לפני השליחה.</div>
     <textarea id="sendtxt" dir="rtl" style="width:100%;min-height:300px;margin-top:10px;font:inherit;font-size:14px;padding:10px;border:1px solid #d9e2e7;border-radius:10px">${esc(evMessage(e))}</textarea>
-    <div class="frow" style="margin-top:10px"><label class="fld"><span>טלפון הלקוח</span><input id="sendph" dir="ltr" inputmode="tel" value="${esc(e.phone || '')}" placeholder="050-1234567"></label></div>
+    <div class="frow" style="margin-top:10px"><label class="fld"><span>טלפון הלקוח</span><input id="sendph" dir="ltr" inputmode="tel" value="${esc(e.phone || '')}" placeholder="050-1234567"></label>
+      <label class="fld"><span>מייל הלקוח</span><input id="sendem" type="email" dir="ltr" value="${esc(e.email || '')}" placeholder="name@gmail.com"></label></div>
     ${ph ? '' : '<div class="hint">בלי מספר, וואטסאפ ייפתח ותבחרי את איש הקשר בעצמך.</div>'}
     <div class="frow" style="margin-top:14px">
       <button class="btn primary" onclick="sendWa()">💬 שליחה בווטסאפ</button>
+      <button class="btn primary" onclick="sendMail()">✉️ שליחה במייל</button>
       <button class="btn" onclick="copyText($('sendtxt').value,this)">📋 העתקת ההודעה</button>
       <button class="btn ghost" onclick="$('sendbox').remove()">סגירה</button>
     </div></div>`;
@@ -1958,6 +1960,10 @@ function sendBox(e) {
 function sendWa() {
   const ph = normPhone($('sendph').value), txt = encodeURIComponent($('sendtxt').value);
   window.open(ph ? `https://wa.me/972${ph.slice(1)}?text=${txt}` : `https://wa.me/?text=${txt}`, '_blank');
+}
+function sendMail() {
+  const em = ($('sendem').value || '').trim(), subj = 'המשחק שלכם בשואלינו מוכן 🎯';
+  location.href = `mailto:${encodeURIComponent(em)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent($('sendtxt').value.replace(/\*/g, ''))}`;
 }
 async function sendEventByCode(code) {
   const e = await DB.get('events/' + code); if (!e) return alert('האירוע לא נמצא');
@@ -1967,7 +1973,7 @@ async function sendFromEditor() {
   const v = editing.ev;
   // שומרים קודם, כדי שהלקוח יקבל בדיוק את מה שרואים עכשיו בעורך
   if (!(await saveEdit(true))) return;
-  sendBox({ code: v.code, client: v.client, phone: v.phone, title: editing.title, from: v.from, to: v.to, qSource: v.qSource, questions: editing.questions });
+  sendBox({ code: v.code, client: v.client, phone: v.phone, email: v.email, title: editing.title, from: v.from, to: v.to, qSource: v.qSource, questions: editing.questions });
 }
 
 /* ---- לשונית "פרטי האירוע" בעורך ---- */
@@ -1979,7 +1985,8 @@ function evHtml() {
       <h3>🎟 פרטי האירוע</h3>
       <div class="frow">
         <label class="fld"><span>שם הלקוח</span><input value="${esc(v.client)}" oninput="editing.ev.client=this.value" placeholder="למשל: משפחת כהן"></label>
-        <label class="fld"><span>טלפון הלקוח</span><input value="${esc(v.phone || '')}" dir="ltr" inputmode="tel" oninput="editing.ev.phone=this.value" placeholder="050-1234567"><small>לשליחת הקישור בווטסאפ</small></label>
+        <label class="fld"><span>טלפון הלקוח</span><input value="${esc(v.phone || '')}" dir="ltr" inputmode="tel" oninput="editing.ev.phone=this.value" placeholder="050-1234567"><small>לשליחה בווטסאפ</small></label>
+        <label class="fld"><span>מייל הלקוח</span><input type="email" value="${esc(v.email || '')}" dir="ltr" oninput="editing.ev.email=this.value" placeholder="name@gmail.com"><small>לשליחה במייל</small></label>
       </div>
       <div class="frow">
         <label class="fld"><span>קוד אירוע</span><input value="${esc(v.code)}" dir="ltr" maxlength="20" oninput="this.value=cleanCode(this.value);editing.ev.code=this.value"><small>הלקוח נכנס עם הקוד הזה. אותיות באנגלית ומספרים.</small></label>
@@ -2118,7 +2125,7 @@ async function saveEventRec(clean, stay) {
     if (code !== v.origCode) {
       if (await DB.get('events/' + code)) { alert(`הקוד ${code} כבר תפוס. בחרי קוד אחר.`); return false; }
     }
-    const rec = { code, title: clean.title, client: v.client.trim(), from: v.from || '', to: v.to || '', logo: v.logo || null, qSource: v.qSource || null, phone: (v.phone || '').trim(),
+    const rec = { code, title: clean.title, client: v.client.trim(), from: v.from || '', to: v.to || '', logo: v.logo || null, qSource: v.qSource || null, phone: (v.phone || '').trim(), email: (v.email || '').trim(),
       questions: clean.questions, settings: clean.settings, ad: (a => adHas(a) ? adPublic(a) : null)(adFor(clean.settings && clean.settings.adProfile)), updatedAt: Date.now() };
     if (!v.origCode) rec.createdAt = Date.now();
     await DB.update('events/' + code, rec);
