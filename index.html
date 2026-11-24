@@ -1876,6 +1876,7 @@ async function renderEventsBody() {
         <div class="sethead">
           <span class="tag st-${st.k}">${st.t}</span>
           <span class="acts">
+            <button class="icb" title="שליחה ללקוח (וואטסאפ)" onclick="sendEventByCode('${e.code}')">📤</button>
             <button class="icb" title="העתקת קישור ללקוח" onclick="copyText('${evLink(e.code)}',this)">🔗</button>
             <button class="icb" title="פתיחת דף הלקוח" onclick="window.open('${evLink(e.code)}','_blank')">↗</button>
             <button class="icb del" title="מחיקה" onclick="delEvent('${e.code}')">🗑</button>
@@ -1899,7 +1900,7 @@ function eventToEditing(e, isNew) {
     id: 'ev-' + e.code, isEvent: true, isNew, title: e.title || '',
     questions: (e.questions || []).map(q => q.tf ? q : { ...q, answers: [0, 1, 2, 3].map(j => (q.answers || [])[j] || ''), amedia: [0, 1, 2, 3].map(j => (q.amedia || [])[j] || null) }),
     settings: getSettings(e),
-    ev: { code: e.code, origCode: isNew ? null : e.code, client: e.client || '', from: e.from || '', to: e.to || '', logo: e.logo || null, qSource: e.qSource || null },
+    ev: { code: e.code, origCode: isNew ? null : e.code, client: e.client || '', from: e.from || '', to: e.to || '', logo: e.logo || null, qSource: e.qSource || null, phone: e.phone || '' },
     runs: Object.values(e.runs || {}).map(r => ({ ...r, players: r.players || [], questions: (r.questions || []).map(q => ({ ...q, answers: q.answers || [], counts: q.counts || [] })) })).sort((a, b) => b.date - a.date),
     tab: isNew ? 'ev' : 'q'
   };
@@ -1925,6 +1926,50 @@ async function runEventAsAdmin(code) {
   return startSet({ title: e.title, questions: e.questions, settings: e.settings }, { event: { code, logo: e.logo, title: e.title } });
 }
 
+/* ---- שליחת האירוע ללקוח (וואטסאפ / העתקה) ---- */
+const BIZ_PHONE = '052-7174317';
+const siteFile = f => new URL(f, joinBase()).href;
+function evMessage(e) {
+  const code = cleanCode(e.code), n = normQs(e.questions).length;
+  const L = [`היי ${e.client || ''} 😊`.replace(' 😊', '').trim() + ' 😊', '',
+    'המשחק שלכם בשׁוֹאָלִינוֹ מוכן! 🎯' + (e.title ? `\n*${e.title}*` : ''), '',
+    '🔗 הקישור להפעלת המשחק (פותחים במחשב, ואפשר לחבר אותו למסך גדול):', evLink(code),
+    `🔑 קוד האירוע: ${code}`, `📅 בתוקף: ${evDates(e)}`, '',
+    '📖 מדריך הפעלה קצר, כדאי לקרוא לפני:', siteFile('guide.pdf')];
+  if (!e.qSource && !n) L.push('', '📝 לשאלות אישיות: ממלאים את הטופס ושולחים לי בחזרה:', siteFile('client-form.xlsx'));
+  L.push('', 'שאלה? תקלה? אני כאן 😊', `ללי שטרן · ${BIZ_PHONE}`);
+  return L.join('\n');
+}
+function sendBox(e) {
+  let d = $('sendbox');
+  if (!d) { d = document.createElement('div'); d.className = 'namesbox'; d.id = 'sendbox'; document.body.appendChild(d); }
+  const ph = normPhone(e.phone);
+  d.innerHTML = `<div class="nb"><h3>📤 שליחה ללקוח</h3>
+    <div class="hint">אפשר לשנות את ההודעה לפני השליחה.</div>
+    <textarea id="sendtxt" dir="rtl" style="width:100%;min-height:300px;margin-top:10px;font:inherit;font-size:14px;padding:10px;border:1px solid #d9e2e7;border-radius:10px">${esc(evMessage(e))}</textarea>
+    <div class="frow" style="margin-top:10px"><label class="fld"><span>טלפון הלקוח</span><input id="sendph" dir="ltr" inputmode="tel" value="${esc(e.phone || '')}" placeholder="050-1234567"></label></div>
+    ${ph ? '' : '<div class="hint">בלי מספר, וואטסאפ ייפתח ותבחרי את איש הקשר בעצמך.</div>'}
+    <div class="frow" style="margin-top:14px">
+      <button class="btn primary" onclick="sendWa()">💬 שליחה בווטסאפ</button>
+      <button class="btn" onclick="copyText($('sendtxt').value,this)">📋 העתקת ההודעה</button>
+      <button class="btn ghost" onclick="$('sendbox').remove()">סגירה</button>
+    </div></div>`;
+}
+function sendWa() {
+  const ph = normPhone($('sendph').value), txt = encodeURIComponent($('sendtxt').value);
+  window.open(ph ? `https://wa.me/972${ph.slice(1)}?text=${txt}` : `https://wa.me/?text=${txt}`, '_blank');
+}
+async function sendEventByCode(code) {
+  const e = await DB.get('events/' + code); if (!e) return alert('האירוע לא נמצא');
+  sendBox(e);
+}
+async function sendFromEditor() {
+  const v = editing.ev;
+  // שומרים קודם, כדי שהלקוח יקבל בדיוק את מה שרואים עכשיו בעורך
+  if (!(await saveEdit(true))) return;
+  sendBox({ code: v.code, client: v.client, phone: v.phone, title: editing.title, from: v.from, to: v.to, qSource: v.qSource, questions: editing.questions });
+}
+
 /* ---- לשונית "פרטי האירוע" בעורך ---- */
 function evHtml() {
   const v = editing.ev, link = evLink(cleanCode(v.code));
@@ -1934,6 +1979,9 @@ function evHtml() {
       <h3>🎟 פרטי האירוע</h3>
       <div class="frow">
         <label class="fld"><span>שם הלקוח</span><input value="${esc(v.client)}" oninput="editing.ev.client=this.value" placeholder="למשל: משפחת כהן"></label>
+        <label class="fld"><span>טלפון הלקוח</span><input value="${esc(v.phone || '')}" dir="ltr" inputmode="tel" oninput="editing.ev.phone=this.value" placeholder="050-1234567"><small>לשליחת הקישור בווטסאפ</small></label>
+      </div>
+      <div class="frow">
         <label class="fld"><span>קוד אירוע</span><input value="${esc(v.code)}" dir="ltr" maxlength="20" oninput="this.value=cleanCode(this.value);editing.ev.code=this.value"><small>הלקוח נכנס עם הקוד הזה. אותיות באנגלית ומספרים.</small></label>
       </div>
       <div class="frow">
@@ -1952,6 +2000,7 @@ function evHtml() {
       <h3>🔗 קישור ללקוח</h3>
       <div class="linkbox" dir="ltr">${esc(link)}</div>
       <div class="frow" style="margin-top:10px">
+        <button class="mb go" onclick="sendFromEditor()">📤 שליחה ללקוח</button>
         <button class="mb" onclick="copyText('${esc(link)}',this)">העתקת הקישור</button>
         ${v.origCode ? `<button class="mb" onclick="window.open('${esc(link)}','_blank')">פתיחת דף הלקוח ↗</button>` : '<span class="hint">הקישור יעבוד אחרי השמירה</span>'}
       </div>
@@ -2069,7 +2118,7 @@ async function saveEventRec(clean, stay) {
     if (code !== v.origCode) {
       if (await DB.get('events/' + code)) { alert(`הקוד ${code} כבר תפוס. בחרי קוד אחר.`); return false; }
     }
-    const rec = { code, title: clean.title, client: v.client.trim(), from: v.from || '', to: v.to || '', logo: v.logo || null, qSource: v.qSource || null,
+    const rec = { code, title: clean.title, client: v.client.trim(), from: v.from || '', to: v.to || '', logo: v.logo || null, qSource: v.qSource || null, phone: (v.phone || '').trim(),
       questions: clean.questions, settings: clean.settings, ad: (a => adHas(a) ? adPublic(a) : null)(adFor(clean.settings && clean.settings.adProfile)), updatedAt: Date.now() };
     if (!v.origCode) rec.createdAt = Date.now();
     await DB.update('events/' + code, rec);
